@@ -62,7 +62,13 @@ var imageRepository = new (function () {
   var numImages = 5;
   var numLoaded = 0;
 
-  this.background = new Image();
+  this.background = {
+    island: new Image(),
+    "tile-water-1": new Image(),
+    "tile-water-2": new Image(),
+    island: new Image(),
+  };
+
   this.character = {
     "walk-up": new Image(),
     "walk-down": new Image(),
@@ -90,21 +96,13 @@ var imageRepository = new (function () {
     };
   });
 
-  this.background.src =
-    "media/graphics/sprites/ingame/tile-water-background.jpg";
-  this.background.onload = function () {
-    imageLoaded();
-  };
+  Object.keys(this.background).forEach((key) => {
+    this.background[key].src = `media/graphics/sprites/ingame/${key}.png`;
+    this.background[key].onload = function () {
+      imageLoaded();
+    };
+  });
 
-  // this.bullet.onload = function () {
-  //   imageLoaded();
-  // };
-  // this.enemy.onload = function () {
-  //   imageLoaded();
-  // };
-  // this.enemyBullet.onload = function () {
-  //   imageLoaded();
-  // };
 })();
 
 function Drawable() {
@@ -132,31 +130,118 @@ function Drawable() {
 }
 
 function Background() {
-  this.speed = 0.5; // Redefine speed of the background for panning
-
+  this.speed = 0.01; // Redefine speed of the background for panning
+  this.tileCountX = 3;
+  this.tileCountY = 2;
+  this.tileSizeX = this.canvasWidth / this.tileCountX;
+  this.tileSizeY = this.canvasHeight / this.tileCountY;
+  this.islandSizeX = this.canvasWidth;
+  this.islandSizeY = this.canvasHeight;
   // Implement abstract function
+
+  this.drawTile = function (tileName, direction = 1) {
+    Array(6)
+      .fill(0)
+      .map((_, i) => {
+        let offsetX = parseInt(i % this.tileCountX);
+        let offsetY = parseInt(i / this.tileCountX);
+
+        this.context.drawImage(
+          imageRepository.background[tileName],
+          0,
+          0,
+          imageRepository.background[tileName].width,
+          imageRepository.background[tileName].height,
+          offsetX * this.tileSizeX + this.x * direction,
+          offsetY * this.tileSizeY + this.y * direction,
+          this.tileSizeX,
+          this.tileSizeY
+        );
+        this.context.drawImage(
+          imageRepository.background[tileName],
+          0,
+          0,
+          imageRepository.background[tileName].width,
+          imageRepository.background[tileName].height,
+          offsetX * this.tileSizeX + this.x * direction,
+          offsetY * this.tileSizeY +
+            direction * this.y -
+            direction *
+              (this.speed / Math.abs(direction * this.speed)) *
+              this.canvasHeight,
+          this.tileSizeX,
+          this.tileSizeY
+        );
+        this.context.drawImage(
+          imageRepository.background[tileName],
+          0,
+          0,
+          imageRepository.background[tileName].width,
+          imageRepository.background[tileName].height,
+          offsetX * this.tileSizeX +
+            direction * this.x -
+            direction *
+              (this.speed / Math.abs(direction * this.speed)) *
+              this.canvasWidth,
+          offsetY * this.tileSizeY + this.y * direction,
+          this.tileSizeX,
+          this.tileSizeY
+        );
+        this.context.drawImage(
+          imageRepository.background[tileName],
+          0,
+          0,
+          imageRepository.background[tileName].width,
+          imageRepository.background[tileName].height,
+          offsetX * this.tileSizeX +
+            direction * this.x -
+            direction *
+              (this.speed / Math.abs(direction * this.speed)) *
+              this.canvasWidth,
+          offsetY * this.tileSizeY +
+            direction * this.y -
+            direction *
+              (this.speed / Math.abs(direction * this.speed)) *
+              this.canvasHeight,
+          this.tileSizeX,
+          this.tileSizeY
+        );
+      });
+  };
+
+  this.drawIsland = function () {
+    this.context.drawImage(
+      imageRepository.background["island"],
+      gCharacterX,
+      gCharacterY,
+      imageRepository.background["island"].width,
+      imageRepository.background["island"].height,
+      0,
+      0,
+      300,
+      200
+    );
+  };
+
   this.draw = function () {
     // Pan background
+    this.x += this.speed;
     this.y += this.speed;
-    //this.context.clearRect(0,0, this.canvasWidth, this.canvasHeight);
-    this.context.drawImage(imageRepository.background, this.x, this.y);
+    this.context.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+    this.drawTile("tile-water-2", -1);
+    this.drawTile("tile-water-1");
 
-    // Draw another image at the top edge of the first image
-    this.context.drawImage(
-      imageRepository.background,
-      this.x,
-      this.y - this.canvasHeight
-    );
+    this.drawIsland();
 
-    // If the image scrolled off the screen, reset
     if (this.y >= this.canvasHeight) this.y = 0;
+    if (this.x >= this.canvasWidth) this.x = 0;
   };
 }
 
 Background.prototype = new Drawable();
 
 function Character() {
-  this.speed = 150;
+  this.speed = 2;
   this.type = "character";
   this.sizeX = 150;
   this.sizeY = 160;
@@ -187,7 +272,15 @@ function Character() {
     this.context.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
     this.context.fillStyle = "rgba(33, 33, 33, 0.5)";
     this.context.beginPath();
-    this.context.ellipse(this.shadowOffsetX, this.shadowOffsetY, 100, 20, 0, 0, Math.PI*2);
+    this.context.ellipse(
+      this.shadowOffsetX,
+      this.shadowOffsetY,
+      100,
+      20,
+      gDispX,
+      gDispY,
+      Math.PI * 2
+    );
     this.context.fill();
 
     this.context.drawImage(
@@ -196,8 +289,8 @@ function Character() {
       this.sy() * this.sizeY,
       this.sizeX,
       this.sizeY,
-      0,
-      0,
+      gDispX,
+      gDispY,
       this.sizeX * 2,
       this.sizeY
     );
@@ -218,27 +311,39 @@ function Character() {
       this.idx();
       if (KEY_STATUS.left && KEY_STATUS.down) {
         this.curImage = imageRepository.character["walk-down-left"];
+        gCharacterX -= this.speed;
+        gCharacterY += this.speed;
         this.shadowOffsetX = 170;
       } else if (KEY_STATUS.right && KEY_STATUS.down) {
         this.shadowOffsetX = 130;
+        gCharacterX += this.speed;
+        gCharacterY += this.speed;
         this.curImage = imageRepository.character["walk-down-right"];
       } else if (KEY_STATUS.left && KEY_STATUS.up) {
         this.shadowOffsetX = 170;
+        gCharacterX -= this.speed;
+        gCharacterY -= this.speed;
         this.curImage = imageRepository.character["walk-up-left"];
       } else if (KEY_STATUS.right && KEY_STATUS.up) {
         this.shadowOffsetX = 130;
+        gCharacterX += this.speed;
+        gCharacterY -= this.speed;
         this.curImage = imageRepository.character["walk-up-right"];
       } else if (KEY_STATUS.left) {
         this.shadowOffsetX = 170;
+        gCharacterX -= this.speed;
         this.curImage = imageRepository.character["walk-left"];
       } else if (KEY_STATUS.right) {
         this.shadowOffsetX = 130;
+        gCharacterX += this.speed;
         this.curImage = imageRepository.character["walk-right"];
       } else if (KEY_STATUS.up) {
         this.shadowOffsetX = 150;
+        gCharacterY -= this.speed;
         this.curImage = imageRepository.character["walk-up"];
       } else if (KEY_STATUS.down) {
         this.shadowOffsetX = 150;
+        gCharacterY += this.speed;
         this.curImage = imageRepository.character["walk-down"];
       }
     }
@@ -254,10 +359,23 @@ function Character() {
 }
 Character.prototype = new Drawable();
 
+var gSizeX = 1000;
+var gSizeY = 1000;
+var gCharacterX = 1800;
+var gCharacterY = 1800;
+var gStageSizeX = 1800;
+var gStageSizeY = 1800;
+var gDispX = 0;
+var gDispY = 0;
+
 function Game() {
   this.init = function () {
     this.canvas = document.getElementById("background");
     this.ctx = this.canvas.getContext("2d");
+
+    // this.ctx.scale(0.5, 0.5);
+    this.ctx.width = 2000;
+    this.ctx.height = 2000;
 
     this.characterCanvas = document.getElementById("character");
     this.characterCtx = this.characterCanvas.getContext("2d");
@@ -275,8 +393,8 @@ function Game() {
 
       //initialize character
       this.character = new Character();
-      this.characterX = 0;
-      this.characterY = 0;
+      gCharacterX = 0;
+      gCharacterY = 0;
       Character.prototype.canvasHeight = this.characterCanvas.height;
       Character.prototype.canvasWidth = this.characterCanvas.width;
       // this.character.init(this.cha);
@@ -287,6 +405,7 @@ function Game() {
       return false;
     }
   };
+  
 
   this.start = function () {
     // this.character.draw();
@@ -347,6 +466,10 @@ document.onkeyup = function (e) {
     KEY_STATUS[KEY_CODES[keyCode]] = false;
   }
 };
+
+window.addEventListener('resize', function() {
+  
+})
 
 window.requestAnimFrame = (function () {
   return (
