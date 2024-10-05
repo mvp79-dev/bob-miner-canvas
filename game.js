@@ -102,7 +102,6 @@ var imageRepository = new (function () {
       imageLoaded();
     };
   });
-
 })();
 
 function Drawable() {
@@ -135,8 +134,8 @@ function Background() {
   this.tileCountY = 2;
   this.tileSizeX = this.canvasWidth / this.tileCountX;
   this.tileSizeY = this.canvasHeight / this.tileCountY;
-  this.islandSizeX = this.canvasWidth;
-  this.islandSizeY = this.canvasHeight;
+  // this.islandSizeX = this.canvasWidth;
+  // this.islandSizeY = this.canvasHeight;
   // Implement abstract function
 
   this.drawTile = function (tileName, direction = 1) {
@@ -218,8 +217,10 @@ function Background() {
       imageRepository.background["island"].height,
       0,
       0,
-      300,
-      200
+      imageRepository.background["island"].width,
+      imageRepository.background["island"].height
+      // 400,
+      // 400
     );
   };
 
@@ -228,8 +229,8 @@ function Background() {
     this.x += this.speed;
     this.y += this.speed;
     this.context.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
-    this.drawTile("tile-water-2", -1);
-    this.drawTile("tile-water-1");
+    // this.drawTile("tile-water-2", -1);
+    // this.drawTile("tile-water-1");
 
     this.drawIsland();
 
@@ -277,8 +278,8 @@ function Character() {
       this.shadowOffsetY,
       100,
       20,
-      gDispX,
-      gDispY,
+      0,
+      0,
       Math.PI * 2
     );
     this.context.fill();
@@ -289,8 +290,8 @@ function Character() {
       this.sy() * this.sizeY,
       this.sizeX,
       this.sizeY,
-      gDispX,
-      gDispY,
+      0,
+      0,
       this.sizeX * 2,
       this.sizeY
     );
@@ -359,56 +360,92 @@ function Character() {
 }
 Character.prototype = new Drawable();
 
-var gSizeX = 1000;
-var gSizeY = 1000;
-var gCharacterX = 1800;
-var gCharacterY = 1800;
-var gStageSizeX = 1800;
-var gStageSizeY = 1800;
-var gDispX = 0;
-var gDispY = 0;
-
 function Game() {
+  this.SizeX = 5000;
+  this.SizeY = 5000;
+  this.characterX = 300;
+  this.characterY = 300;
+  this.viewSize = 1800;
+
+  this.islands = [
+    {
+      id: 1,
+      x: 300,
+      y: 300,
+    },
+  ];
+  this.viewSizeX = this.viewSize;
+  this.viewSizeY = this.viewSize;
+
   this.init = function () {
     this.canvas = document.getElementById("background");
     this.ctx = this.canvas.getContext("2d");
-
-    // this.ctx.scale(0.5, 0.5);
-    this.ctx.width = 2000;
-    this.ctx.height = 2000;
 
     this.characterCanvas = document.getElementById("character");
     this.characterCtx = this.characterCanvas.getContext("2d");
 
     if (this.ctx) {
-      //initialize contexts.
+      // Initialize contexts
       Background.prototype.context = this.ctx;
       Character.prototype.context = this.characterCtx;
 
-      //initialize background
+      // Initialize background
       this.background = new Background();
       this.background.init(0, 0);
       Background.prototype.canvasHeight = this.canvas.height;
       Background.prototype.canvasWidth = this.canvas.width;
-
-      //initialize character
+      // Initialize character
       this.character = new Character();
       gCharacterX = 0;
       gCharacterY = 0;
       Character.prototype.canvasHeight = this.characterCanvas.height;
       Character.prototype.canvasWidth = this.characterCanvas.width;
-      // this.character.init(this.cha);
       this.character.init(0, 0, 150, 160);
+
+      // Make the canvas responsive
+      this.resizeCanvas();
+      window.addEventListener("resize", () => this.resizeCanvas());
 
       return true;
     } else {
       return false;
     }
   };
-  
+
+  this.resizeCanvas = function () {
+    // Get the current window size
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+
+    // this.characterCanvas.width = window.innerWidth;
+    // this.characterCanvas.height = window.innerHeight;
+
+    Background.prototype.canvasHeight = this.canvas.height;
+    Background.prototype.canvasWidth = this.canvas.width;
+
+    Character.prototype.canvasHeight = this.characterCanvas.height;
+    Character.prototype.canvasWidth = this.characterCanvas.width;
+
+    if (this.canvas.width > this.canvas.height) {
+      this.viewSizeX = this.canvas.width*this.viewSizeY/this.canvas.height;
+      this.viewSizeY = this.viewSize;
+    } else {
+      this.viewSizeY = this.canvas.height*this.viewSizeX/this.canvas.width;
+      this.viewSizeX = this.viewSize;
+    }
+
+    let ratioX =
+      Math.min(this.viewSizeX, this.canvas.width) /
+      Math.max(this.viewSizeX, this.canvas.width);
+    let ratioY =
+      Math.min(this.viewSizeY, this.canvas.height) /
+      Math.max(this.viewSizeY, this.canvas.height);
+      
+    this.ctx.scale(ratioX, ratioY);
+    // this.characterCtx.scale(newWidth / this.originalWidth, newHeight / this.originalHeight);
+  };
 
   this.start = function () {
-    // this.character.draw();
     animate();
   };
 }
@@ -467,9 +504,10 @@ document.onkeyup = function (e) {
   }
 };
 
-window.addEventListener('resize', function() {
-  
-})
+// window.addEventListener("resize", () => {
+//   let ratio = gRatio();
+//   console.log("ratio:", ratio)
+// });
 
 window.requestAnimFrame = (function () {
   return (
