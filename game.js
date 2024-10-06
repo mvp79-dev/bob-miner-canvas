@@ -129,98 +129,47 @@ function Drawable() {
 }
 
 function Background() {
-  this.speed = 0.01; // Redefine speed of the background for panning
-  this.tileCountX = 3;
-  this.tileCountY = 2;
-  this.tileSizeX = this.canvasWidth / this.tileCountX;
-  this.tileSizeY = this.canvasHeight / this.tileCountY;
-  // this.islandSizeX = this.canvasWidth;
-  // this.islandSizeY = this.canvasHeight;
-  // Implement abstract function
+  this.speed = 0; // Redefine speed of the background for panning
+  this.acc = 0;
+  this.tileSizeX = 720;
+  this.tileSizeY = 720;
+  this.tileResetX = game.viewSizeX % this.tileSizeX;
+  this.tileResetX = game.viewSizeX % this.tileSizeY;
 
   this.drawTile = function (tileName, direction = 1) {
-    Array(6)
-      .fill(0)
-      .map((_, i) => {
-        let offsetX = parseInt(i % this.tileCountX);
-        let offsetY = parseInt(i / this.tileCountX);
+    let tileCountX =
+      parseInt(game.viewSizeX / imageRepository.background[tileName].width) + 1;
+    let tileCountY =
+      parseInt(game.viewSizeY / imageRepository.background[tileName].height) +
+      1;
 
+    for (let offsetX = -2 * tileCountX; offsetX < 2 * tileCountX; offsetX++)
+      for (let offsetY = -2 * tileCountY; offsetY < 2 * tileCountY; offsetY++) {
         this.context.drawImage(
           imageRepository.background[tileName],
           0,
           0,
           imageRepository.background[tileName].width,
           imageRepository.background[tileName].height,
-          offsetX * this.tileSizeX + this.x * direction,
-          offsetY * this.tileSizeY + this.y * direction,
-          this.tileSizeX,
-          this.tileSizeY
-        );
-        this.context.drawImage(
-          imageRepository.background[tileName],
-          0,
-          0,
+          direction * offsetX * this.tileSizeX + direction * this.x,
+          direction * offsetY * this.tileSizeY + direction * this.y,
           imageRepository.background[tileName].width,
-          imageRepository.background[tileName].height,
-          offsetX * this.tileSizeX + this.x * direction,
-          offsetY * this.tileSizeY +
-            direction * this.y -
-            direction *
-              (this.speed / Math.abs(direction * this.speed)) *
-              this.canvasHeight,
-          this.tileSizeX,
-          this.tileSizeY
+          imageRepository.background[tileName].height
         );
-        this.context.drawImage(
-          imageRepository.background[tileName],
-          0,
-          0,
-          imageRepository.background[tileName].width,
-          imageRepository.background[tileName].height,
-          offsetX * this.tileSizeX +
-            direction * this.x -
-            direction *
-              (this.speed / Math.abs(direction * this.speed)) *
-              this.canvasWidth,
-          offsetY * this.tileSizeY + this.y * direction,
-          this.tileSizeX,
-          this.tileSizeY
-        );
-        this.context.drawImage(
-          imageRepository.background[tileName],
-          0,
-          0,
-          imageRepository.background[tileName].width,
-          imageRepository.background[tileName].height,
-          offsetX * this.tileSizeX +
-            direction * this.x -
-            direction *
-              (this.speed / Math.abs(direction * this.speed)) *
-              this.canvasWidth,
-          offsetY * this.tileSizeY +
-            direction * this.y -
-            direction *
-              (this.speed / Math.abs(direction * this.speed)) *
-              this.canvasHeight,
-          this.tileSizeX,
-          this.tileSizeY
-        );
-      });
+      }
   };
 
   this.drawIsland = function () {
     this.context.drawImage(
       imageRepository.background["island"],
-      gCharacterX,
-      gCharacterY,
+      game.characterX,
+      game.characterY,
       imageRepository.background["island"].width,
       imageRepository.background["island"].height,
       0,
       0,
       imageRepository.background["island"].width,
       imageRepository.background["island"].height
-      // 400,
-      // 400
     );
   };
 
@@ -228,14 +177,12 @@ function Background() {
     // Pan background
     this.x += this.speed;
     this.y += this.speed;
-    this.context.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
-    // this.drawTile("tile-water-2", -1);
-    // this.drawTile("tile-water-1");
+    this.acc += 0.001;
+    this.context.clearRect(0, 0, game.viewSizeX, game.viewSizeY);
+    this.drawTile("tile-water-2", -1);
+    this.drawTile("tile-water-1", 1);
 
-    this.drawIsland();
-
-    if (this.y >= this.canvasHeight) this.y = 0;
-    if (this.x >= this.canvasWidth) this.x = 0;
+    this.speed = Math.sin(this.acc);
   };
 }
 
@@ -427,10 +374,12 @@ function Game() {
     Character.prototype.canvasWidth = this.characterCanvas.width;
 
     if (this.canvas.width > this.canvas.height) {
-      this.viewSizeX = this.canvas.width*this.viewSizeY/this.canvas.height;
+      this.viewSizeX =
+        (this.canvas.width * this.viewSizeY) / this.canvas.height;
       this.viewSizeY = this.viewSize;
     } else {
-      this.viewSizeY = this.canvas.height*this.viewSizeX/this.canvas.width;
+      this.viewSizeY =
+        (this.canvas.height * this.viewSizeX) / this.canvas.width;
       this.viewSizeX = this.viewSize;
     }
 
@@ -440,7 +389,7 @@ function Game() {
     let ratioY =
       Math.min(this.viewSizeY, this.canvas.height) /
       Math.max(this.viewSizeY, this.canvas.height);
-      
+
     this.ctx.scale(ratioX, ratioY);
     // this.characterCtx.scale(newWidth / this.originalWidth, newHeight / this.originalHeight);
   };
