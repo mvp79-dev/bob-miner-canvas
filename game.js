@@ -276,10 +276,14 @@ function Character() {
       KEY_STATUS.left ||
       KEY_STATUS.right ||
       KEY_STATUS.down ||
-      KEY_STATUS.up
+      KEY_STATUS.up ||
+      game.control
     ) {
       this.idx();
-      if (KEY_STATUS.left && KEY_STATUS.down) {
+      if (
+        (KEY_STATUS.left && KEY_STATUS.down) ||
+        (game.direction == "DL")
+      ) {
         this.curImage = imageRepository.character["walk-down-left"];
         this.shadowOffsetX =
           this.shadowOffsetX < 30 ? this.shadowOffsetX + 1 : 30;
@@ -290,7 +294,10 @@ function Character() {
           game.viewPosX -= this.speed;
           game.viewPosY += this.speed;
         }
-      } else if (KEY_STATUS.right && KEY_STATUS.down) {
+      } else if (
+        (KEY_STATUS.right && KEY_STATUS.down) ||
+        (game.direction == "DR")
+      ) {
         this.curImage = imageRepository.character["walk-down-right"];
         this.shadowOffsetX =
           this.shadowOffsetX > -30 ? this.shadowOffsetX - 1 : -30;
@@ -301,7 +308,10 @@ function Character() {
           game.viewPosX += this.speed;
           game.viewPosY += this.speed;
         }
-      } else if (KEY_STATUS.left && KEY_STATUS.up) {
+      } else if (
+        (KEY_STATUS.left && KEY_STATUS.up) ||
+        (game.direction == "UL")
+      ) {
         this.curImage = imageRepository.character["walk-up-left"];
 
         if (game.movableLeft && game.movableUp) {
@@ -312,7 +322,10 @@ function Character() {
         }
         this.shadowOffsetX =
           this.shadowOffsetX < 30 ? this.shadowOffsetX + 1 : 30;
-      } else if (KEY_STATUS.right && KEY_STATUS.up) {
+      } else if (
+        (KEY_STATUS.right && KEY_STATUS.up) ||
+        (game.direction == "UR")
+      ) {
         this.curImage = imageRepository.character["walk-up-right"];
         this.shadowOffsetX =
           this.shadowOffsetX > -30 ? this.shadowOffsetX - 1 : -30;
@@ -323,7 +336,10 @@ function Character() {
           game.viewPosX += this.speed;
           game.viewPosY -= this.speed;
         }
-      } else if (KEY_STATUS.left) {
+      } else if (
+        KEY_STATUS.left ||
+        (game.direction == "L")
+      ) {
         this.curImage = imageRepository.character["walk-left"];
         this.shadowOffsetX =
           this.shadowOffsetX < 30 ? this.shadowOffsetX + 1 : 30;
@@ -332,7 +348,10 @@ function Character() {
           game.characterX -= this.speed;
           game.viewPosX -= this.speed;
         }
-      } else if (KEY_STATUS.right) {
+      } else if (
+        KEY_STATUS.right ||
+        (game.direction == "R")
+      ) {
         this.curImage = imageRepository.character["walk-right"];
         this.shadowOffsetX =
           this.shadowOffsetX > -30 ? this.shadowOffsetX - 1 : -30;
@@ -340,13 +359,19 @@ function Character() {
           game.characterX += this.speed;
           game.viewPosX += this.speed;
         }
-      } else if (KEY_STATUS.up) {
+      } else if (
+        KEY_STATUS.up ||
+        (game.direction == "U")
+      ) {
         this.curImage = imageRepository.character["walk-up"];
         if (game.movableUp) {
           game.characterY -= this.speed;
           game.viewPosY -= this.speed;
         }
-      } else if (KEY_STATUS.down) {
+      } else if (
+        KEY_STATUS.down ||
+        (game.direction == "D")
+      ) {
         this.curImage = imageRepository.character["walk-down"];
 
         if (game.movableDown) {
@@ -416,6 +441,7 @@ function Game() {
   this.control = false;
   this.controlAngle = 0;
   this.controlRadius = 0;
+  this.direction = null;
 
   this.islandData = [
     {
@@ -501,23 +527,62 @@ function Game() {
 
   this.mouseMove = function (e) {
     if (this.control) {
-      this.controlOffsetX =
+      let controlOffsetX =
         (e.clientX / this.canvas.width) * this.viewSizeX - this.controlX;
-      this.controlOffsetY =
+      let controlOffsetY =
         (e.clientY / this.canvas.height) * this.viewSizeY - this.controlY;
 
       // Calculate angle of movement
-      this.controlAngle = Math.atan2(this.controlOffsetY, this.controlOffsetX);
+      this.controlAngle = Math.atan2(controlOffsetY, controlOffsetX);
 
-      console.log("angle:", this.controlAngle)
-      // Restrict the control radius to a maximum of 85px
+      if (this.controlAngle < 0) {
+        this.controlAngle += 2 * Math.PI;
+      }
+
+      // Now divide the angle into 8 equal sections
+      let section = Math.floor(this.controlAngle / ((2 * Math.PI) / 8)); // Each section is π/4 radians
+
+      // Do something based on the section (0 through 7)
+      switch (section) {
+        case 0:
+          // Movement is to the right (0 to π/4)
+          this.direction = "R";
+          break;
+        case 1:
+          // Movement is in the upper-right direction (π/4 to π/2)
+          this.direction = "DR";
+          break;
+        case 2:
+          // Movement is upwards (π/2 to 3π/4)
+          this.direction = "D";
+          break;
+        case 3:
+          // Movement is in the upper-left direction (3π/4 to π)
+          this.direction = "DL";
+          break;
+        case 4:
+          // Movement is to the left (π to 5π/4)
+          this.direction = "L";
+          break;
+        case 5:
+          // Movement is in the lower-left direction (5π/4 to 3π/2)
+          this.direction = "UL";
+          break;
+        case 6:
+          // Movement is downwards (3π/2 to 7π/4)
+          this.direction = "U";
+          break;
+        case 7:
+          // Movement is in the lower-right direction (7π/4 to 2π)
+          this.direction = "UR";
+          break;
+      }
+
       let distance = Math.sqrt(
-        this.controlOffsetX * this.controlOffsetX +
-          this.controlOffsetY * this.controlOffsetY
+        controlOffsetX * controlOffsetX + controlOffsetY * controlOffsetY
       );
-      this.controlRadius = Math.min(distance, 85);
-
-      // Recalculate the controlOffsetX and controlOffsetY to fit within the restricted radius
+      this.controlRadius = distance > 0 ? 85 : 0;
+      
       this.controlOffsetX = this.controlRadius * Math.cos(this.controlAngle);
       this.controlOffsetY = this.controlRadius * Math.sin(this.controlAngle);
     } else {
