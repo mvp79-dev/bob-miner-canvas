@@ -63,24 +63,23 @@ var imageRepository = new (function () {
   var numLoaded = 0;
 
   this.background = {
-    island: new Image(),
     "tile-water-1": new Image(),
     "tile-water-2": new Image(),
-    island: new Image(),
   };
 
-  this.character = {
-    "walk-up": new Image(),
-    "walk-down": new Image(),
-    "walk-left": new Image(),
-    "walk-right": new Image(),
-    "walk-up-left": new Image(),
-    "walk-down-left": new Image(),
-    "walk-up-right": new Image(),
-    "walk-down-right": new Image(),
-    "work-up": new Image(),
-    "work-down": new Image(),
-  };
+  (this.island = new Image()),
+    (this.character = {
+      "walk-up": new Image(),
+      "walk-down": new Image(),
+      "walk-left": new Image(),
+      "walk-right": new Image(),
+      "walk-up-left": new Image(),
+      "walk-down-left": new Image(),
+      "walk-up-right": new Image(),
+      "walk-down-right": new Image(),
+      "work-up": new Image(),
+      "work-down": new Image(),
+    });
 
   function imageLoaded() {
     numLoaded++;
@@ -88,6 +87,10 @@ var imageRepository = new (function () {
       window.init();
     }
   }
+
+  this.island.onload = function () {
+    imageLoaded();
+  };
 
   Object.keys(this.character).forEach((key) => {
     this.character[key].src = `media/graphics/sprites/character/${key}.png`;
@@ -102,6 +105,8 @@ var imageRepository = new (function () {
       imageLoaded();
     };
   });
+
+  this.island.src = "media/graphics/sprites/ingame/island.png";
 })();
 
 function Drawable() {
@@ -151,54 +156,39 @@ function Background() {
           0,
           imageRepository.background[tileName].width,
           imageRepository.background[tileName].height,
-          direction * offsetX * this.tileSizeX + direction * this.x,
-          direction * offsetY * this.tileSizeY + direction * this.y,
+          direction * offsetX * this.tileSizeX +
+            direction * this.x -
+            game.characterX,
+          direction * offsetY * this.tileSizeY +
+            direction * this.y -
+            game.characterY,
           imageRepository.background[tileName].width,
           imageRepository.background[tileName].height
         );
       }
   };
 
-  this.drawIsland = function () {
-    this.context.drawImage(
-      imageRepository.background["island"],
-      game.characterX,
-      game.characterY,
-      imageRepository.background["island"].width,
-      imageRepository.background["island"].height,
-      0,
-      0,
-      imageRepository.background["island"].width,
-      imageRepository.background["island"].height
-    );
-  };
-
   this.draw = function () {
-    // Pan background
     this.x += this.speed;
     this.y += this.speed;
     this.acc += 0.001;
     this.context.clearRect(0, 0, game.viewSizeX, game.viewSizeY);
     this.drawTile("tile-water-2", -1);
     this.drawTile("tile-water-1", 1);
-
-    this.speed = Math.sin(this.acc);
+    this.speed = 0.5 * Math.sin(this.acc);
   };
 }
-
 Background.prototype = new Drawable();
 
 function Character() {
-  this.speed = 2;
+  this.speed = 5;
   this.type = "character";
-  this.sizeX = 150;
-  this.sizeY = 160;
+  this.shadowOffsetY = 0;
+  this.shadowOffsetX = 0;
+
   this.curImage = imageRepository.character["walk-up"];
   this.curIdx = 0;
   this.maxIdx = 12;
-  this.shadowOffsetX = 150;
-  this.shadowOffsetY = 125;
-  // this.dw =
 
   this.init = function (x, y, width, height) {
     // Defualt variables
@@ -217,14 +207,21 @@ function Character() {
   };
 
   this.draw = function () {
-    this.context.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
+    this.context.clearRect(0, 0, game.viewSizeX, game.viewSizeY);
     this.context.fillStyle = "rgba(33, 33, 33, 0.5)";
     this.context.beginPath();
+
     this.context.ellipse(
-      this.shadowOffsetX,
-      this.shadowOffsetY,
-      100,
-      20,
+      this.shadowOffsetX +
+        game.characterX -
+        game.viewPosX +
+        game.characterWidth / 2,
+      this.shadowOffsetY +
+        game.characterY -
+        game.viewPosY +
+        game.characterHeight,
+      game.characterWidth / 2 + 30,
+      50,
       0,
       0,
       Math.PI * 2
@@ -233,14 +230,14 @@ function Character() {
 
     this.context.drawImage(
       this.curImage,
-      this.sx() * this.sizeX,
-      this.sy() * this.sizeY,
-      this.sizeX,
-      this.sizeY,
-      0,
-      0,
-      this.sizeX * 2,
-      this.sizeY
+      this.sx() * 150,
+      this.sy() * 160,
+      150,
+      160,
+      game.characterX - game.viewPosX - 75,
+      game.characterY - game.viewPosY - 80,
+      game.characterWidth + 150,
+      game.characterHeight + 160
     );
   };
 
@@ -256,44 +253,89 @@ function Character() {
       KEY_STATUS.down ||
       KEY_STATUS.up
     ) {
+      console.log(
+        "movable:",
+        game.movableUp,
+        game.movableDown,
+        game.movableLeft,
+        game.movableRight
+      );
       this.idx();
       if (KEY_STATUS.left && KEY_STATUS.down) {
         this.curImage = imageRepository.character["walk-down-left"];
-        gCharacterX -= this.speed;
-        gCharacterY += this.speed;
-        this.shadowOffsetX = 170;
+        this.shadowOffsetX =
+          this.shadowOffsetX < 30 ? this.shadowOffsetX + 1 : 30;
+
+        if (game.movableLeft && game.movableDown) {
+          game.characterX -= this.speed;
+          game.characterY += this.speed;
+          game.viewPosX -= this.speed;
+          game.viewPosY += this.speed;
+        }
       } else if (KEY_STATUS.right && KEY_STATUS.down) {
-        this.shadowOffsetX = 130;
-        gCharacterX += this.speed;
-        gCharacterY += this.speed;
         this.curImage = imageRepository.character["walk-down-right"];
+        this.shadowOffsetX =
+          this.shadowOffsetX > -30 ? this.shadowOffsetX - 1 : -30;
+
+        if (game.movableRight && game.movableDown) {
+          game.characterX += this.speed;
+          game.characterY += this.speed;
+          game.viewPosX += this.speed;
+          game.viewPosY += this.speed;
+        }
       } else if (KEY_STATUS.left && KEY_STATUS.up) {
-        this.shadowOffsetX = 170;
-        gCharacterX -= this.speed;
-        gCharacterY -= this.speed;
         this.curImage = imageRepository.character["walk-up-left"];
+
+        if (game.movableLeft && game.movableUp) {
+          game.characterX -= this.speed;
+          game.characterY -= this.speed;
+          game.viewPosX -= this.speed;
+          game.viewPosY -= this.speed;
+        }
+        this.shadowOffsetX =
+          this.shadowOffsetX < 30 ? this.shadowOffsetX + 1 : 30;
       } else if (KEY_STATUS.right && KEY_STATUS.up) {
-        this.shadowOffsetX = 130;
-        gCharacterX += this.speed;
-        gCharacterY -= this.speed;
         this.curImage = imageRepository.character["walk-up-right"];
+        this.shadowOffsetX =
+          this.shadowOffsetX > -30 ? this.shadowOffsetX - 1 : -30;
+
+        if (game.movableRight && game.movableUp) {
+          game.characterX += this.speed;
+          game.characterY -= this.speed;
+          game.viewPosX += this.speed;
+          game.viewPosY -= this.speed;
+        }
       } else if (KEY_STATUS.left) {
-        this.shadowOffsetX = 170;
-        gCharacterX -= this.speed;
         this.curImage = imageRepository.character["walk-left"];
+        this.shadowOffsetX =
+          this.shadowOffsetX < 30 ? this.shadowOffsetX + 1 : 30;
+
+        if (game.movableLeft) {
+          game.characterX -= this.speed;
+          game.viewPosX -= this.speed;
+        }
       } else if (KEY_STATUS.right) {
-        this.shadowOffsetX = 130;
-        gCharacterX += this.speed;
         this.curImage = imageRepository.character["walk-right"];
+        this.shadowOffsetX =
+          this.shadowOffsetX > -30 ? this.shadowOffsetX - 1 : -30;
+        if (game.movableRight) {
+          game.characterX += this.speed;
+          game.viewPosX += this.speed;
+        }
       } else if (KEY_STATUS.up) {
-        this.shadowOffsetX = 150;
-        gCharacterY -= this.speed;
         this.curImage = imageRepository.character["walk-up"];
+        if (game.movableUp) {
+          game.characterY -= this.speed;
+          game.viewPosY -= this.speed;
+        }
       } else if (KEY_STATUS.down) {
-        this.shadowOffsetX = 150;
-        gCharacterY += this.speed;
         this.curImage = imageRepository.character["walk-down"];
-      }
+
+        if (game.movableDown) {
+          game.characterY += this.speed;
+          game.viewPosY += this.speed;
+        }
+      } else this.shadowOffsetX = 0;
     }
 
     // Redraw the character
@@ -307,20 +349,71 @@ function Character() {
 }
 Character.prototype = new Drawable();
 
+function Islands() {
+  this.draw = function () {
+    this.data.forEach((island) => {
+      game.movableRight =
+        island.x + island.width > game.characterX + game.characterWidth
+          ? true
+          : false;
+      game.movableDown =
+        island.y + island.height > game.characterY + game.characterHeight
+          ? true
+          : false;
+      game.movableLeft = island.x <= game.characterX ? true : false;
+      game.movableUp = island.y < game.characterY ? true : false;
+
+      this.context.drawImage(
+        imageRepository.island,
+        0,
+        0,
+        imageRepository.island.width,
+        imageRepository.island.height,
+        island.x - game.viewPosX,
+        island.y - game.viewPosY,
+        imageRepository.island.width,
+        imageRepository.island.height
+      );
+    });
+  };
+}
+Islands.prototype = new Drawable();
+
 function Game() {
   this.SizeX = 5000;
   this.SizeY = 5000;
-  this.characterX = 300;
-  this.characterY = 300;
+  this.characterX = 0;
+  this.characterY = 0;
+  this.characterWidth = 150;
+  this.characterHeight = 160;
   this.viewSize = 1800;
+  this.viewPosX = 0;
+  this.viewPosY = 0;
+  this.movableUp = true;
+  this.movableDown = true;
+  this.movableLeft = true;
+  this.movableRight = true;
 
-  this.islands = [
+  this.islandData = [
     {
       id: 1,
-      x: 300,
-      y: 300,
+      x: 0,
+      y: 0,
+      width: 1800,
+      height: 1800,
+      jewel: [
+        {
+          x: 100,
+          y: 100,
+        },
+        {
+          x: 300,
+          y: 300,
+        },
+      ],
     },
   ];
+
   this.viewSizeX = this.viewSize;
   this.viewSizeY = this.viewSize;
 
@@ -343,13 +436,18 @@ function Game() {
       Background.prototype.canvasWidth = this.canvas.width;
       // Initialize character
       this.character = new Character();
-      gCharacterX = 0;
-      gCharacterY = 0;
       Character.prototype.canvasHeight = this.characterCanvas.height;
       Character.prototype.canvasWidth = this.characterCanvas.width;
+      Character.prototype.sizeX = 150;
+      Character.prototype.sizeY = 160;
+
       this.character.init(0, 0, 150, 160);
 
       // Make the canvas responsive
+      this.islands = new Islands();
+      Islands.prototype.data = this.islandData;
+      Islands.prototype.context = this.ctx;
+
       this.resizeCanvas();
       window.addEventListener("resize", () => this.resizeCanvas());
 
@@ -364,8 +462,8 @@ function Game() {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
 
-    // this.characterCanvas.width = window.innerWidth;
-    // this.characterCanvas.height = window.innerHeight;
+    this.characterCanvas.width = window.innerWidth;
+    this.characterCanvas.height = window.innerHeight;
 
     Background.prototype.canvasHeight = this.canvas.height;
     Background.prototype.canvasWidth = this.canvas.width;
@@ -383,6 +481,9 @@ function Game() {
       this.viewSizeX = this.viewSize;
     }
 
+    this.viewPosX = this.characterX - this.viewSizeX / 2;
+    this.viewPosY = this.characterY - this.viewSizeY / 2;
+
     let ratioX =
       Math.min(this.viewSizeX, this.canvas.width) /
       Math.max(this.viewSizeX, this.canvas.width);
@@ -391,7 +492,9 @@ function Game() {
       Math.max(this.viewSizeY, this.canvas.height);
 
     this.ctx.scale(ratioX, ratioY);
-    // this.characterCtx.scale(newWidth / this.originalWidth, newHeight / this.originalHeight);
+    this.characterCtx.scale(ratioX, ratioY);
+    Character.prototype.drawX = game.viewSizeX / 2 - Character.prototype.sizeX;
+    Character.prototype.drawY = game.viewSizeY / 2 - Character.prototype.sizeY;
   };
 
   this.start = function () {
@@ -402,6 +505,7 @@ function Game() {
 function animate() {
   requestAnimFrame(animate);
   game.background.draw();
+  game.islands.draw();
   game.character.draw();
   game.character.move();
 }
@@ -452,11 +556,6 @@ document.onkeyup = function (e) {
     KEY_STATUS[KEY_CODES[keyCode]] = false;
   }
 };
-
-// window.addEventListener("resize", () => {
-//   let ratio = gRatio();
-//   console.log("ratio:", ratio)
-// });
 
 window.requestAnimFrame = (function () {
   return (
