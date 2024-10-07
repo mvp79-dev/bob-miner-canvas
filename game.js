@@ -67,6 +67,7 @@ var imageRepository = new (function () {
     "tile-water-2": new Image(),
   };
 
+  this.control = new Image();
   (this.island = new Image()),
     (this.character = {
       "walk-up": new Image(),
@@ -92,6 +93,10 @@ var imageRepository = new (function () {
     imageLoaded();
   };
 
+  this.control.onload = function () {
+    imageLoaded();
+  };
+
   Object.keys(this.character).forEach((key) => {
     this.character[key].src = `media/graphics/sprites/character/${key}.png`;
     this.character[key].onload = function () {
@@ -107,6 +112,7 @@ var imageRepository = new (function () {
   });
 
   this.island.src = "media/graphics/sprites/ingame/island.png";
+  this.control.src = "media/graphics/sprites/ui/control.png";
 })();
 
 function Drawable() {
@@ -239,6 +245,25 @@ function Character() {
       game.characterWidth + 150,
       game.characterHeight + 160
     );
+
+    if (game.control) {
+      this.context.fillStyle = "rgba(255, 0, 0, 0.5)";
+      this.context.beginPath();
+      this.context.arc(
+        game.controlX + game.controlOffsetX,
+        game.controlY + game.controlOffsetY,
+        30,
+        0,
+        Math.PI * 2
+      );
+
+      this.context.drawImage(
+        imageRepository.control,
+        game.controlX - imageRepository.control.width / 2,
+        game.controlY - imageRepository.control.height / 2
+      );
+      this.context.fill();
+    }
   };
 
   this.idx = function () {
@@ -253,13 +278,6 @@ function Character() {
       KEY_STATUS.down ||
       KEY_STATUS.up
     ) {
-      console.log(
-        "movable:",
-        game.movableUp,
-        game.movableDown,
-        game.movableLeft,
-        game.movableRight
-      );
       this.idx();
       if (KEY_STATUS.left && KEY_STATUS.down) {
         this.curImage = imageRepository.character["walk-down-left"];
@@ -393,6 +411,11 @@ function Game() {
   this.movableDown = true;
   this.movableLeft = true;
   this.movableRight = true;
+  this.controlOffsetX = 0;
+  this.controlOffsetY = 0;
+  this.control = false;
+  this.controlAngle = 0;
+  this.controlRadius = 0;
 
   this.islandData = [
     {
@@ -450,10 +473,56 @@ function Game() {
 
       this.resizeCanvas();
       window.addEventListener("resize", () => this.resizeCanvas());
+      window.addEventListener("mousedown", (e) => this.mouseDown(e));
+      window.addEventListener("mouseup", (e) => this.mouseUp(e));
+      window.addEventListener("mousemove", (e) => this.mouseMove(e));
 
       return true;
     } else {
       return false;
+    }
+  };
+
+  this.mouseDown = function (e) {
+    this.control = true;
+    this.controlX = (e.clientX / this.canvas.width) * this.viewSizeX;
+    this.controlY = (e.clientY / this.canvas.height) * this.viewSizeY;
+
+    // Reset control angle and radius when mouse is pressed
+    this.controlOffsetX = 0;
+    this.controlOffsetY = 0;
+    this.controlAngle = 0;
+    this.controlRadius = 0;
+  };
+
+  this.mouseUp = function (e) {
+    this.control = false;
+  };
+
+  this.mouseMove = function (e) {
+    if (this.control) {
+      this.controlOffsetX =
+        (e.clientX / this.canvas.width) * this.viewSizeX - this.controlX;
+      this.controlOffsetY =
+        (e.clientY / this.canvas.height) * this.viewSizeY - this.controlY;
+
+      // Calculate angle of movement
+      this.controlAngle = Math.atan2(this.controlOffsetY, this.controlOffsetX);
+
+      console.log("angle:", this.controlAngle)
+      // Restrict the control radius to a maximum of 85px
+      let distance = Math.sqrt(
+        this.controlOffsetX * this.controlOffsetX +
+          this.controlOffsetY * this.controlOffsetY
+      );
+      this.controlRadius = Math.min(distance, 85);
+
+      // Recalculate the controlOffsetX and controlOffsetY to fit within the restricted radius
+      this.controlOffsetX = this.controlRadius * Math.cos(this.controlAngle);
+      this.controlOffsetY = this.controlRadius * Math.sin(this.controlAngle);
+    } else {
+      this.controlAngle = 0;
+      this.controlRadius = 0;
     }
   };
 
@@ -525,6 +594,7 @@ KEY_CODES = {
 // of a key press and which one was pressed when determining
 // when to move and which direction.
 KEY_STATUS = {};
+
 for (code in KEY_CODES) {
   KEY_STATUS[KEY_CODES[code]] = false;
 }
@@ -543,6 +613,7 @@ document.onkeydown = function (e) {
     KEY_STATUS[KEY_CODES[keyCode]] = true;
   }
 };
+
 /**
  * Sets up the document to listen to ownkeyup events (fired when
  * any key on the keyboard is released). When a key is released,
