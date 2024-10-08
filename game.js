@@ -205,31 +205,50 @@ function Character() {
   this.shadowOffsetY = 0;
   this.shadowOffsetX = 0;
 
-  this.curImage = imageRepository.character["walk-up"];
-  this.curIdx = 0;
-  this.maxIdx = 12;
+  this.moveImage = imageRepository.character["walk-up"];
+  this.workImage = imageRepository.character["work-up"];
+  this.curMoveIdx = 0;
+  this.curWorkIdx = 0;
+  this.maxMoveIdx = 12;
+  this.maxWorkIdx = 6;
 
   this.init = function (x, y, width, height) {
-    // Defualt variables
     this.x = x;
     this.y = y;
     this.width = width;
     this.height = height;
   };
 
-  this.sx = function () {
-    return parseInt(this.curIdx % 6);
+  this.moveSx = function () {
+    return parseInt(this.curMoveIdx % 6);
   };
 
-  this.sy = function () {
-    return parseInt(this.curIdx / 6);
+  this.moveSy = function () {
+    return parseInt(this.curMoveIdx / 6);
+  };
+
+  this.workSx = function () {
+    return parseInt(this.curWorkIdx % 6);
+  };
+
+  this.workSy = function () {
+    return parseInt(this.curWorkIdx / 6);
+  };
+
+  this.moveIdx = function () {
+    this.curMoveIdx += 0.1;
+    if (this.curMoveIdx >= this.maxMoveIdx) this.curMoveIdx = 0;
+  };
+
+  this.workIdx = function () {
+    this.curWorkIdx += 0.1;
+    if (this.curWorkIdx >= this.maxWorkIdx) this.curWorkIdx = 0;
   };
 
   this.draw = function () {
     this.context.clearRect(0, 0, game.viewSizeX, game.viewSizeY);
     this.context.fillStyle = "rgba(33, 33, 33, 0.5)";
     this.context.beginPath();
-
     this.context.ellipse(
       this.shadowOffsetX +
         game.characterX -
@@ -247,18 +266,19 @@ function Character() {
     );
     this.context.fill();
 
-    this.context.drawImage(
-      this.curImage,
-      this.sx() * 150,
-      this.sy() * 160,
-      150,
-      160,
-      game.characterX - game.viewPosX - 75,
-      game.characterY - game.viewPosY - 80,
-      game.characterWidth + 150,
-      game.characterHeight + 160
-    );
+    //draw character
+    if (game.mining) {
+      this.workImage = this.moveImage.src.includes("down")
+        ? imageRepository.character["work-down"]
+        : imageRepository.character["work-up"];
+      this.workIdx();
+      this.work();
+    } else {
+      this.move();
+    }
+    //draw shadow
 
+    //draw control
     if (game.control) {
       this.context.fillStyle = "rgba(255, 0, 0, 0.5)";
       this.context.beginPath();
@@ -279,11 +299,6 @@ function Character() {
     }
   };
 
-  this.idx = function () {
-    this.curIdx += 0.1;
-    if (this.curIdx >= this.maxIdx) this.curIdx = 0;
-  };
-
   this.move = function () {
     if (
       KEY_STATUS.left ||
@@ -292,9 +307,9 @@ function Character() {
       KEY_STATUS.up ||
       game.control
     ) {
-      this.idx();
+      this.moveIdx();
       if ((KEY_STATUS.left && KEY_STATUS.down) || game.direction == "DL") {
-        this.curImage = imageRepository.character["walk-down-left"];
+        this.moveImage = imageRepository.character["walk-down-left"];
         this.shadowOffsetX =
           this.shadowOffsetX < 30 ? this.shadowOffsetX + 1 : 30;
 
@@ -308,7 +323,7 @@ function Character() {
         (KEY_STATUS.right && KEY_STATUS.down) ||
         game.direction == "DR"
       ) {
-        this.curImage = imageRepository.character["walk-down-right"];
+        this.moveImage = imageRepository.character["walk-down-right"];
         this.shadowOffsetX =
           this.shadowOffsetX > -30 ? this.shadowOffsetX - 1 : -30;
 
@@ -319,7 +334,7 @@ function Character() {
           game.viewPosY += this.speed;
         }
       } else if ((KEY_STATUS.left && KEY_STATUS.up) || game.direction == "UL") {
-        this.curImage = imageRepository.character["walk-up-left"];
+        this.moveImage = imageRepository.character["walk-up-left"];
 
         if (game.movableLeft && game.movableUp) {
           game.characterX -= this.speed;
@@ -333,7 +348,7 @@ function Character() {
         (KEY_STATUS.right && KEY_STATUS.up) ||
         game.direction == "UR"
       ) {
-        this.curImage = imageRepository.character["walk-up-right"];
+        this.moveImage = imageRepository.character["walk-up-right"];
         this.shadowOffsetX =
           this.shadowOffsetX > -30 ? this.shadowOffsetX - 1 : -30;
 
@@ -344,7 +359,7 @@ function Character() {
           game.viewPosY -= this.speed;
         }
       } else if (KEY_STATUS.left || game.direction == "L") {
-        this.curImage = imageRepository.character["walk-left"];
+        this.moveImage = imageRepository.character["walk-left"];
         this.shadowOffsetX =
           this.shadowOffsetX < 30 ? this.shadowOffsetX + 1 : 30;
 
@@ -353,7 +368,7 @@ function Character() {
           game.viewPosX -= this.speed;
         }
       } else if (KEY_STATUS.right || game.direction == "R") {
-        this.curImage = imageRepository.character["walk-right"];
+        this.moveImage = imageRepository.character["walk-right"];
         this.shadowOffsetX =
           this.shadowOffsetX > -30 ? this.shadowOffsetX - 1 : -30;
         if (game.movableRight) {
@@ -361,13 +376,13 @@ function Character() {
           game.viewPosX += this.speed;
         }
       } else if (KEY_STATUS.up || game.direction == "U") {
-        this.curImage = imageRepository.character["walk-up"];
+        this.moveImage = imageRepository.character["walk-up"];
         if (game.movableUp) {
           game.characterY -= this.speed;
           game.viewPosY -= this.speed;
         }
       } else if (KEY_STATUS.down || game.direction == "D") {
-        this.curImage = imageRepository.character["walk-down"];
+        this.moveImage = imageRepository.character["walk-down"];
 
         if (game.movableDown) {
           game.characterY += this.speed;
@@ -376,19 +391,44 @@ function Character() {
       } else this.shadowOffsetX = 0;
     }
 
-    // Redraw the character
-    if (!this.isColliding) {
-      this.draw();
-    } else {
-      // this.alive = false;
-      // game.gameOver();
-    }
+    this.context.drawImage(
+      this.moveImage,
+      this.moveSx() * 150,
+      this.moveSy() * 160,
+      150,
+      160,
+      game.characterX - game.viewPosX - 75,
+      game.characterY - game.viewPosY - 80,
+      game.characterWidth + 150,
+      game.characterHeight + 160
+    );
+  };
+
+  this.work = function () {
+    this.context.drawImage(
+      this.workImage,
+      this.workSx() * 187,
+      // this.workSy() * 160,
+      0,
+      187,
+      188,
+      game.characterX - game.viewPosX - 187 / 2,
+      game.characterY - game.viewPosY - 188 / 2,
+      game.characterWidth + 187,
+      game.characterHeight + 188
+    );
   };
 }
 Character.prototype = new Drawable();
 
 function Islands() {
   const respawnDelay = 8000; // Delay for jewel respawn (in milliseconds)
+  this.jewelMoveSpeed = 0;
+  this.touchedJewelId = null;
+
+  // Fade-out properties
+  this.fadeOutDuration = 1000; // Duration for fade-out in milliseconds
+  this.fadeOutStartTime = null; // Tracks when fade-out starts
 
   // Method to draw islands and handle jewel lifecycle
   this.draw = function () {
@@ -434,7 +474,15 @@ function Islands() {
       // Helper function to respawn a jewel after removal
       const respawnJewel = (x, y, lifecycle) => {
         setTimeout(() => {
-          island.jewels.push(game.initJewel(x, y, lifecycle)); // Push new jewel to the same position
+          island.jewels.push(
+            game.initJewel(
+              x,
+              y,
+              0.5 * game.jewelWidth,
+              0.5 * game.jewelHeight,
+              lifecycle
+            )
+          ); // Push new jewel to the same position
         }, respawnDelay);
       };
 
@@ -460,11 +508,14 @@ function Islands() {
 
         // Handle jewel touching logic
         if (
-          !collision.up ||
+          (!collision.up ||
           !collision.down ||
           !collision.left ||
-          !collision.right
+          !collision.right)&&!jewel.isFadingOut
         ) {
+          game.mining = true;
+          this.touchedJewelId = i;
+          this.jewelMoveSpeed += 0.04;
           if (!jewel.touched) {
             jewel.touched = true;
             jewel.touchStartTime = Date.now(); // Start tracking touch time
@@ -477,20 +528,19 @@ function Islands() {
 
             // Remove the jewel if it has been touched for longer than its lifecycle
             if (jewel.totalTouchedTime >= jewel.lifecycle) {
-              const removedJewelPosition = {
-                x: jewel.x,
-                y: jewel.y,
-                lifecycle: jewel.lifecycle,
-              }; // Store position
-              island.jewels.splice(i, 1); // Remove the jewel
-
-              // Respawn the jewel after a delay
-              respawnJewel(
-                removedJewelPosition.x,
-                removedJewelPosition.y,
-                removedJewelPosition.lifecycle
+              jewel.fadeOutAlpha = 1; // Start fade-out with full opacity
+              jewel.isFadingOut = true; // Set fading out state
+              jewel.touched = false;
+              this.touchedJewelId = null;
+              this.jewelMoveSpeed = 0;
+              game.mining = false;
+              game.ownedJewel[island.jewelType.split("-")[0]] += parseInt(
+                Math.random() * 3 + 10
               );
-              return; // Skip the rest of the loop for this jewel since it's removed
+
+              // Start fade out process
+              this.fadeOutStartTime = Date.now();
+              return; // Skip the rest of the loop for this jewel since it's marked for fade out
             }
           }
         } else {
@@ -499,21 +549,87 @@ function Islands() {
             jewel.touched = false;
             let currentTouchTime = Date.now() - jewel.touchStartTime;
             jewel.totalTouchedTime += currentTouchTime; // Accumulate total touch time
+
+            this.jewelMoveSpeed = 0;
+            this.touchedJewelId = null;
+            game.mining = false;
           }
         }
 
         // Draw the jewel
+        if (jewel.isFadingOut) {
+          const elapsedTime = Date.now() - this.fadeOutStartTime;
+          const fadeOutProgress = elapsedTime / this.fadeOutDuration;
+          jewel.fadeOutAlpha = Math.max(0, 1 - fadeOutProgress); // Calculate current alpha
+
+          // Remove the jewel after it fades out
+          if (jewel.fadeOutAlpha === 0) {
+            const removedJewelPosition = {
+              x: jewel.x,
+              y: jewel.y,
+              lifecycle: jewel.lifecycle,
+            }; // Store position
+            island.jewels.splice(i, 1); // Remove the jewel
+            this.touchedJewelId = null;
+            this.jewelMoveSpeed = 0;
+            game.mining = false;
+            game.ownedJewel[island.jewelType.split("-")[0]] += parseInt(
+              Math.random() * 3 + 10
+            );
+            // Respawn the jewel after a delay
+            respawnJewel(
+              removedJewelPosition.x,
+              removedJewelPosition.y,
+              removedJewelPosition.lifecycle
+            );
+            return; // Skip the rest of the loop for this jewel since it's removed
+          }
+        } else {
+        }
+
+        jewel.width =
+          jewel.width < game.jewelWidth
+            ? (jewel.width += game.jewelWidth * 0.005)
+            : game.jewelWidth;
+        jewel.height =
+          jewel.height < game.jewelHeight
+            ? (jewel.height += game.jewelHeight * 0.005)
+            : game.jewelHeight;
+        let x =
+          i === this.touchedJewelId
+            ? island.x -
+              game.viewPosX +
+              jewel.x +
+              15 * Math.sin(this.jewelMoveSpeed)
+            : island.x -
+              game.viewPosX +
+              jewel.x +
+              game.jewelWidth / 2 -
+              jewel.width / 2;
+        let y =
+          island.y -
+          game.viewPosY +
+          jewel.y +
+          game.jewelHeight / 2 -
+          jewel.height / 2;
+
+        // Set the global alpha value for the context before drawing
+        this.context.globalAlpha = jewel.isFadingOut ? jewel.fadeOutAlpha : 1;
+
         this.context.drawImage(
           imageRepository.jewel[island.jewelType],
           0,
           0,
           imageRepository.jewel[island.jewelType].width,
           imageRepository.jewel[island.jewelType].height,
-          island.x - game.viewPosX + jewel.x,
-          island.y - game.viewPosY + jewel.y,
-          game.jewelWidth,
-          game.jewelHeight
+          x,
+          y,
+          jewel.width,
+          jewel.height
         );
+
+        // Reset the alpha for subsequent drawings
+        this.context.globalAlpha = 1;
       });
 
       // Update game's movement flags based on the results of collisions
@@ -581,11 +697,19 @@ function Game() {
   this.direction = null;
   this.jewelWidth = 250;
   this.jewelHeight = 300;
+  this.mining = false;
+  this.ownedJewel = {
+    ruby: 0,
+    emerald: 0,
+    money: 0,
+  };
 
-  this.initJewel = function (x, y, lifecycle) {
+  this.initJewel = function (x, y, width, height, lifecycle) {
     return {
       x: x,
       y: y,
+      width: width,
+      height: height,
       lifecycle: lifecycle, // Total lifecycle time in milliseconds
       touched: false, // Tracks if the jewel was touched
       touchedTime: null, // Time when it was first touched
@@ -616,14 +740,13 @@ function Game() {
         minLifecycle;
 
       // Add a new jewel with random position and lifecycle
-      jewels.push(this.initJewel(x, y, lifecycle));
+      jewels.push(
+        this.initJewel(x, y, this.jewelWidth, this.jewelHeight, lifecycle)
+      );
     }
 
     return jewels;
   };
-
-  // Example usage
-  const initialJewels = this.generateJewelArray(7, 1800, 1800, 2000, 4000); // 10 j
 
   this.islandData = [
     {
@@ -633,33 +756,13 @@ function Game() {
       width: 1800,
       height: 1800,
       jewelType: "ruby-mine",
-      // jewels: [
-      //   {
-      //     x: 200,
-      //     y: 200,
-      //   },
-      //   {
-      //     x: 500,
-      //     y: 500,
-      //   },
-      //   {
-      //     x: 200,
-      //     y: 1300,
-      //   },
-      //   {
-      //     x: 500,
-      //     y: 1000,
-      //   },
-      //   {
-      //     x: 700,
-      //     y: 400,
-      //   },
-      //   {
-      //     x: 1200,
-      //     y: 1200,
-      //   },
-      // ],
-      jewels: initialJewels,
+      jewels: (initialJewels = this.generateJewelArray(
+        7,
+        1800,
+        1800,
+        2000,
+        4000
+      )),
     },
   ];
 
@@ -842,7 +945,7 @@ function animate() {
   game.background.draw();
   game.islands.draw();
   game.character.draw();
-  game.character.move();
+  console.log(game.ownedJewel);
 }
 
 // The keycodes that will be mapped when a user presses a button.
