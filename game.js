@@ -82,6 +82,12 @@ var imageRepository = new (function () {
       "work-down": new Image(),
     });
 
+  this.jewel = {
+    "amethyst-mine": new Image(),
+    "emerald-mine": new Image(),
+    "ruby-mine": new Image(),
+  };
+
   function imageLoaded() {
     numLoaded++;
     if (numLoaded === numImages) {
@@ -107,6 +113,13 @@ var imageRepository = new (function () {
   Object.keys(this.background).forEach((key) => {
     this.background[key].src = `media/graphics/sprites/ingame/${key}.png`;
     this.background[key].onload = function () {
+      imageLoaded();
+    };
+  });
+
+  Object.keys(this.jewel).forEach((key) => {
+    this.jewel[key].src = `media/graphics/sprites/ingame/${key}.png`;
+    this.jewel[key].onload = function () {
       imageLoaded();
     };
   });
@@ -187,7 +200,7 @@ function Background() {
 Background.prototype = new Drawable();
 
 function Character() {
-  this.speed = 5;
+  this.speed = 4;
   this.type = "character";
   this.shadowOffsetY = 0;
   this.shadowOffsetX = 0;
@@ -280,10 +293,7 @@ function Character() {
       game.control
     ) {
       this.idx();
-      if (
-        (KEY_STATUS.left && KEY_STATUS.down) ||
-        (game.direction == "DL")
-      ) {
+      if ((KEY_STATUS.left && KEY_STATUS.down) || game.direction == "DL") {
         this.curImage = imageRepository.character["walk-down-left"];
         this.shadowOffsetX =
           this.shadowOffsetX < 30 ? this.shadowOffsetX + 1 : 30;
@@ -296,7 +306,7 @@ function Character() {
         }
       } else if (
         (KEY_STATUS.right && KEY_STATUS.down) ||
-        (game.direction == "DR")
+        game.direction == "DR"
       ) {
         this.curImage = imageRepository.character["walk-down-right"];
         this.shadowOffsetX =
@@ -308,10 +318,7 @@ function Character() {
           game.viewPosX += this.speed;
           game.viewPosY += this.speed;
         }
-      } else if (
-        (KEY_STATUS.left && KEY_STATUS.up) ||
-        (game.direction == "UL")
-      ) {
+      } else if ((KEY_STATUS.left && KEY_STATUS.up) || game.direction == "UL") {
         this.curImage = imageRepository.character["walk-up-left"];
 
         if (game.movableLeft && game.movableUp) {
@@ -324,7 +331,7 @@ function Character() {
           this.shadowOffsetX < 30 ? this.shadowOffsetX + 1 : 30;
       } else if (
         (KEY_STATUS.right && KEY_STATUS.up) ||
-        (game.direction == "UR")
+        game.direction == "UR"
       ) {
         this.curImage = imageRepository.character["walk-up-right"];
         this.shadowOffsetX =
@@ -336,10 +343,7 @@ function Character() {
           game.viewPosX += this.speed;
           game.viewPosY -= this.speed;
         }
-      } else if (
-        KEY_STATUS.left ||
-        (game.direction == "L")
-      ) {
+      } else if (KEY_STATUS.left || game.direction == "L") {
         this.curImage = imageRepository.character["walk-left"];
         this.shadowOffsetX =
           this.shadowOffsetX < 30 ? this.shadowOffsetX + 1 : 30;
@@ -348,10 +352,7 @@ function Character() {
           game.characterX -= this.speed;
           game.viewPosX -= this.speed;
         }
-      } else if (
-        KEY_STATUS.right ||
-        (game.direction == "R")
-      ) {
+      } else if (KEY_STATUS.right || game.direction == "R") {
         this.curImage = imageRepository.character["walk-right"];
         this.shadowOffsetX =
           this.shadowOffsetX > -30 ? this.shadowOffsetX - 1 : -30;
@@ -359,19 +360,13 @@ function Character() {
           game.characterX += this.speed;
           game.viewPosX += this.speed;
         }
-      } else if (
-        KEY_STATUS.up ||
-        (game.direction == "U")
-      ) {
+      } else if (KEY_STATUS.up || game.direction == "U") {
         this.curImage = imageRepository.character["walk-up"];
         if (game.movableUp) {
           game.characterY -= this.speed;
           game.viewPosY -= this.speed;
         }
-      } else if (
-        KEY_STATUS.down ||
-        (game.direction == "D")
-      ) {
+      } else if (KEY_STATUS.down || game.direction == "D") {
         this.curImage = imageRepository.character["walk-down"];
 
         if (game.movableDown) {
@@ -395,17 +390,6 @@ Character.prototype = new Drawable();
 function Islands() {
   this.draw = function () {
     this.data.forEach((island) => {
-      game.movableRight =
-        island.x + island.width > game.characterX + game.characterWidth
-          ? true
-          : false;
-      game.movableDown =
-        island.y + island.height > game.characterY + game.characterHeight
-          ? true
-          : false;
-      game.movableLeft = island.x <= game.characterX ? true : false;
-      game.movableUp = island.y < game.characterY ? true : false;
-
       this.context.drawImage(
         imageRepository.island,
         0,
@@ -417,19 +401,203 @@ function Islands() {
         imageRepository.island.width,
         imageRepository.island.height
       );
+      // Initialize jewels with lifecycle and other properties
+      function initJewel(x, y, jewelType, lifecycle) {
+        return {
+          x: x,
+          y: y,
+          jewelType: jewelType,
+          lifecycle: lifecycle, // Lifecycle time in milliseconds
+          totalTouchTime: 0, // Time the character has been touching this jewel
+          lastTouchTime: null, // When the character last started touching the jewel
+          removeScheduled: false, // To prevent multiple removal timers
+        };
+      }
+
+      // Function to handle jewel removal and respawn after lifecycle is reached
+      function handleJewelLifecycle(
+        jewelIndex,
+        jewel,
+        respawnDelay,
+        initialLifecycle
+      ) {
+        jewel.removeScheduled = true; // Prevent multiple removals
+
+        // Remove the jewel from the array
+        island.jewels.splice(jewelIndex, 1);
+
+        // Respawn a new jewel after a delay at the same position
+        setTimeout(() => {
+          island.jewels.push(
+            initJewel(jewel.x, jewel.y, jewel.jewelType, initialLifecycle)
+          );
+        }, respawnDelay);
+      }
+
+      // Function to check collision between character and jewel
+      function checkCollision(x1, y1, x2, y2, w1, w2, h1, h2) {
+        let centerX1 = x1 + w1 / 2;
+        let centerY1 = y1 + h1 / 2;
+        let centerX2 = x2 + w2 / 2;
+        let centerY2 = y2 + h2 / 2;
+
+        let minDistance = Math.min(w1, h1) / 2 + Math.min(w2, h2) / 2;
+        let dx = centerX1 - centerX2;
+        let dy = centerY1 - centerY2;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+
+        let right = true;
+        let down = true;
+        let up = true;
+        let left = true;
+
+        // Collision occurs when the distance between centers is less than the sum of the half-widths
+        if (distance < minDistance) {
+          if (Math.abs(dx) > Math.abs(dy)) {
+            if (dx > 0) {
+              left = false;
+            } else {
+              right = false;
+            }
+          } else {
+            if (dy > 0) {
+              up = false;
+            } else {
+              down = false;
+            }
+          }
+        }
+
+        return { up, down, left, right };
+      }
+
+      // Initialize movement flags before looping through the jewels
+      let movableUp = true;
+      let movableDown = true;
+      let movableLeft = true;
+      let movableRight = true;
+
+      // Loop through the jewels array in reverse order to allow safe removal
+      for (let i = island.jewels.length - 1; i >= 0; i--) {
+        let jewel = island.jewels[i];
+        let jewelX = island.x + jewel.x;
+        let jewelY = island.y + jewel.y;
+
+        // Check collision for each jewel
+        let { up, down, left, right } = checkCollision(
+          game.characterX,
+          game.characterY,
+          jewelX,
+          jewelY,
+          game.characterWidth,
+          game.jewelWidth,
+          game.characterHeight,
+          game.jewelHeight
+        );
+
+        // Accumulate movement restrictions from each jewel
+        movableRight =
+          movableRight &&
+          right &&
+          island.x + island.width > game.characterX + game.characterWidth;
+        movableDown =
+          movableDown &&
+          down &&
+          island.y + island.height > game.characterY + game.characterHeight;
+        movableLeft = movableLeft && left && island.x <= game.characterX;
+        movableUp = movableUp && up && island.y < game.characterY;
+
+        // If collision is detected (meaning the character is touching the jewel)
+        if (!up || !down || !left || !right) {
+          // If the character starts touching the jewel, start counting time
+          if (jewel.lastTouchTime === null) {
+            jewel.lastTouchTime = Date.now();
+          } else {
+            // Increment the total touch time
+            const now = Date.now();
+            jewel.totalTouchTime += now - jewel.lastTouchTime;
+            jewel.lastTouchTime = now;
+
+            // If the total touch time exceeds the jewel's lifecycle, remove it
+            if (
+              jewel.totalTouchTime >= jewel.lifecycle &&
+              !jewel.removeScheduled
+            ) {
+              handleJewelLifecycle(i, jewel, 5000, jewel.lifecycle); // 5000ms respawn delay
+            }
+          }
+        } else {
+          // If the character is not touching the jewel, stop counting
+          jewel.lastTouchTime = null;
+        }
+
+        // Draw each jewel at its position
+        this.context.drawImage(
+          imageRepository.jewel[jewel.jewelType],
+          0,
+          0,
+          imageRepository.jewel[jewel.jewelType].width,
+          imageRepository.jewel[jewel.jewelType].height,
+          island.x - game.viewPosX + jewel.x,
+          island.y - game.viewPosY + jewel.y,
+          game.jewelWidth,
+          game.jewelHeight
+        );
+      }
+
+      // After processing all jewels, update the game's movement flags
+      game.movableRight = movableRight;
+      game.movableDown = movableDown;
+      game.movableLeft = movableLeft;
+      game.movableUp = movableUp;
     });
   };
 }
 Islands.prototype = new Drawable();
 
+function checkCollision(x1, y1, x2, y2, w1, w2, h1, h2) {
+  let centerX1 = x1 + w1 / 2;
+  let centerY1 = y1 + h1 / 2;
+  let centerX2 = x2 + w2 / 2;
+  let centerY2 = y2 + h2 / 2;
+
+  let minDistance = Math.min(w1, h1) / 2 + Math.min(w2, h2) / 2;
+  let dx = centerX1 - centerX2;
+  let dy = centerY1 - centerY2;
+  let distance = Math.sqrt(dx * dx + dy * dy);
+
+  let right = true;
+  let down = true;
+  let up = true;
+  let left = true;
+
+  if (distance < minDistance) {
+    if (Math.abs(dx) > Math.abs(dy)) {
+      if (dx > 0) {
+        left = false;
+      } else {
+        right = false;
+      }
+    } else {
+      if (dy > 0) {
+        up = false;
+      } else {
+        down = false;
+      }
+    }
+  }
+
+  return { up, down, left, right };
+}
+
 function Game() {
   this.SizeX = 5000;
   this.SizeY = 5000;
-  this.characterX = 0;
-  this.characterY = 0;
+  this.characterX = Math.random() * 1000;
+  this.characterY = Math.random() * 1000;
   this.characterWidth = 150;
   this.characterHeight = 160;
-  this.viewSize = 1800;
+  this.viewSize = 1200;
   this.viewPosX = 0;
   this.viewPosY = 0;
   this.movableUp = true;
@@ -442,6 +610,8 @@ function Game() {
   this.controlAngle = 0;
   this.controlRadius = 0;
   this.direction = null;
+  this.jewelWidth = 250;
+  this.jewelHeight = 300;
 
   this.islandData = [
     {
@@ -450,14 +620,42 @@ function Game() {
       y: 0,
       width: 1800,
       height: 1800,
-      jewel: [
+      jewels: [
         {
-          x: 100,
-          y: 100,
+          x: 200,
+          y: 200,
+          jewelType: "ruby-mine",
+          lifecycle: 5000,
         },
         {
-          x: 300,
-          y: 300,
+          x: 500,
+          y: 500,
+          jewelType: "ruby-mine",
+          lifecycle: 5000,
+        },
+        {
+          x: 200,
+          y: 1300,
+          jewelType: "ruby-mine",
+          lifecycle: 5000,
+        },
+        {
+          x: 500,
+          y: 1000,
+          jewelType: "ruby-mine",
+          lifecycle: 5000,
+        },
+        {
+          x: 700,
+          y: 400,
+          jewelType: "ruby-mine",
+          lifecycle: 5000,
+        },
+        {
+          x: 1200,
+          y: 1200,
+          jewelType: "ruby-mine",
+          lifecycle: 5000,
         },
       ],
     },
@@ -523,6 +721,7 @@ function Game() {
 
   this.mouseUp = function (e) {
     this.control = false;
+    this.direction = "";
   };
 
   this.mouseMove = function (e) {
@@ -582,7 +781,7 @@ function Game() {
         controlOffsetX * controlOffsetX + controlOffsetY * controlOffsetY
       );
       this.controlRadius = distance > 0 ? 85 : 0;
-      
+
       this.controlOffsetX = this.controlRadius * Math.cos(this.controlAngle);
       this.controlOffsetY = this.controlRadius * Math.sin(this.controlAngle);
     } else {
