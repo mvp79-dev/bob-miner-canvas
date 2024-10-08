@@ -427,7 +427,7 @@ function Islands() {
   this.touchedJewelId = null;
 
   // Fade-out properties
-  this.fadeOutDuration = 1000; // Duration for fade-out in milliseconds
+  this.fadeOutDuration = 250; // Duration for fade-out in milliseconds
   this.fadeOutStartTime = null; // Tracks when fade-out starts
 
   // Method to draw islands and handle jewel lifecycle
@@ -472,18 +472,41 @@ function Islands() {
       };
 
       // Helper function to respawn a jewel after removal
+      // Helper function to calculate the distance between two points
+      const calculateDistance = (x1, y1, x2, y2) => {
+        return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+      };
+
+      // Modified function to respawn a jewel after removal, now with position condition
       const respawnJewel = (x, y, lifecycle) => {
-        setTimeout(() => {
-          island.jewels.push(
-            game.initJewel(
-              x,
-              y,
-              0.5 * game.jewelWidth,
-              0.5 * game.jewelHeight,
-              lifecycle
-            )
-          ); // Push new jewel to the same position
-        }, respawnDelay);
+        const checkAndRespawn = () => {
+          // Calculate the distance between the character and the jewel's respawn point
+          const distance = calculateDistance(
+            game.characterX,
+            game.characterY,
+            x,
+            y
+          );
+
+          // Only respawn if the character is farther than 500 units away
+          if (distance > 500) {
+            island.jewels.push(
+              game.initJewel(
+                x,
+                y,
+                0.5 * game.jewelWidth,
+                0.5 * game.jewelHeight,
+                lifecycle
+              )
+            );
+          } else {
+            // If the character is too close, check again after a short delay
+            setTimeout(checkAndRespawn, 1000); // Re-check every second
+          }
+        };
+
+        // Start the respawn process after the initial respawn delay
+        setTimeout(checkAndRespawn, respawnDelay);
       };
 
       // Process jewels and check collisions
@@ -509,9 +532,10 @@ function Islands() {
         // Handle jewel touching logic
         if (
           (!collision.up ||
-          !collision.down ||
-          !collision.left ||
-          !collision.right)&&!jewel.isFadingOut
+            !collision.down ||
+            !collision.left ||
+            !collision.right) &&
+          !jewel.isFadingOut
         ) {
           game.mining = true;
           this.touchedJewelId = i;
@@ -584,7 +608,6 @@ function Islands() {
             );
             return; // Skip the rest of the loop for this jewel since it's removed
           }
-        } else {
         }
 
         jewel.width =
@@ -635,6 +658,9 @@ function Islands() {
       // Update game's movement flags based on the results of collisions
       Object.assign(game, movementFlags);
     });
+
+    // Allow character to move even while touching a jewel or during fade-out
+    game.character.move();
   };
 }
 
