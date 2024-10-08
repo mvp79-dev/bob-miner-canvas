@@ -388,8 +388,12 @@ function Character() {
 Character.prototype = new Drawable();
 
 function Islands() {
+  const respawnDelay = 8000; // Delay for jewel respawn (in milliseconds)
+
+  // Method to draw islands and handle jewel lifecycle
   this.draw = function () {
     this.data.forEach((island) => {
+      // Draw the island
       this.context.drawImage(
         imageRepository.island,
         0,
@@ -401,90 +405,46 @@ function Islands() {
         imageRepository.island.width,
         imageRepository.island.height
       );
-      // Initialize jewels with lifecycle and other properties
-      function initJewel(x, y, jewelType, lifecycle) {
-        return {
-          x: x,
-          y: y,
-          jewelType: jewelType,
-          lifecycle: lifecycle, // Lifecycle time in milliseconds
-          totalTouchTime: 0, // Time the character has been touching this jewel
-          lastTouchTime: null, // When the character last started touching the jewel
-          removeScheduled: false, // To prevent multiple removal timers
-        };
-      }
 
-      // Function to handle jewel removal and respawn after lifecycle is reached
-      function handleJewelLifecycle(
-        jewelIndex,
-        jewel,
-        respawnDelay,
-        initialLifecycle
-      ) {
-        jewel.removeScheduled = true; // Prevent multiple removals
+      // Initialize movement flags
+      let movementFlags = {
+        movableUp: true,
+        movableDown: true,
+        movableLeft: true,
+        movableRight: true,
+      };
 
-        // Remove the jewel from the array
-        island.jewels.splice(jewelIndex, 1);
+      // Helper function to update movement flags
+      const updateMovementFlags = (collision) => {
+        const { up, down, left, right } = collision;
+        movementFlags.movableRight =
+          movementFlags.movableRight &&
+          right &&
+          island.x + island.width > game.characterX + game.characterWidth;
+        movementFlags.movableDown =
+          movementFlags.movableDown &&
+          down &&
+          island.y + island.height > game.characterY + game.characterHeight;
+        movementFlags.movableLeft =
+          movementFlags.movableLeft && left && island.x <= game.characterX;
+        movementFlags.movableUp =
+          movementFlags.movableUp && up && island.y < game.characterY;
+      };
 
-        // Respawn a new jewel after a delay at the same position
+      // Helper function to respawn a jewel after removal
+      const respawnJewel = (x, y, lifecycle) => {
         setTimeout(() => {
-          island.jewels.push(
-            initJewel(jewel.x, jewel.y, jewel.jewelType, initialLifecycle)
-          );
+          island.jewels.push(game.initJewel(x, y, lifecycle)); // Push new jewel to the same position
         }, respawnDelay);
-      }
+      };
 
-      // Function to check collision between character and jewel
-      function checkCollision(x1, y1, x2, y2, w1, w2, h1, h2) {
-        let centerX1 = x1 + w1 / 2;
-        let centerY1 = y1 + h1 / 2;
-        let centerX2 = x2 + w2 / 2;
-        let centerY2 = y2 + h2 / 2;
+      // Process jewels and check collisions
+      island.jewels.forEach((jewel, i) => {
+        const jewelX = island.x + jewel.x;
+        const jewelY = island.y + jewel.y;
 
-        let minDistance = Math.min(w1, h1) / 2 + Math.min(w2, h2) / 2;
-        let dx = centerX1 - centerX2;
-        let dy = centerY1 - centerY2;
-        let distance = Math.sqrt(dx * dx + dy * dy);
-
-        let right = true;
-        let down = true;
-        let up = true;
-        let left = true;
-
-        // Collision occurs when the distance between centers is less than the sum of the half-widths
-        if (distance < minDistance) {
-          if (Math.abs(dx) > Math.abs(dy)) {
-            if (dx > 0) {
-              left = false;
-            } else {
-              right = false;
-            }
-          } else {
-            if (dy > 0) {
-              up = false;
-            } else {
-              down = false;
-            }
-          }
-        }
-
-        return { up, down, left, right };
-      }
-
-      // Initialize movement flags before looping through the jewels
-      let movableUp = true;
-      let movableDown = true;
-      let movableLeft = true;
-      let movableRight = true;
-
-      // Loop through the jewels array in reverse order to allow safe removal
-      for (let i = island.jewels.length - 1; i >= 0; i--) {
-        let jewel = island.jewels[i];
-        let jewelX = island.x + jewel.x;
-        let jewelY = island.y + jewel.y;
-
-        // Check collision for each jewel
-        let { up, down, left, right } = checkCollision(
+        // Check collision with character
+        const collision = checkCollision(
           game.characterX,
           game.characterY,
           jewelX,
@@ -495,64 +455,73 @@ function Islands() {
           game.jewelHeight
         );
 
-        // Accumulate movement restrictions from each jewel
-        movableRight =
-          movableRight &&
-          right &&
-          island.x + island.width > game.characterX + game.characterWidth;
-        movableDown =
-          movableDown &&
-          down &&
-          island.y + island.height > game.characterY + game.characterHeight;
-        movableLeft = movableLeft && left && island.x <= game.characterX;
-        movableUp = movableUp && up && island.y < game.characterY;
+        // Update movement flags based on collisions
+        updateMovementFlags(collision);
 
-        // If collision is detected (meaning the character is touching the jewel)
-        if (!up || !down || !left || !right) {
-          // If the character starts touching the jewel, start counting time
-          if (jewel.lastTouchTime === null) {
-            jewel.lastTouchTime = Date.now();
+        // Handle jewel touching logic
+        if (
+          !collision.up ||
+          !collision.down ||
+          !collision.left ||
+          !collision.right
+        ) {
+          if (!jewel.touched) {
+            jewel.touched = true;
+            jewel.touchStartTime = Date.now(); // Start tracking touch time
+            jewel.totalTouchedTime = jewel.totalTouchedTime || 0; // Initialize total touch time
           } else {
-            // Increment the total touch time
-            const now = Date.now();
-            jewel.totalTouchTime += now - jewel.lastTouchTime;
-            jewel.lastTouchTime = now;
+            // Accumulate the touch time
+            let currentTouchTime = Date.now() - jewel.touchStartTime;
+            jewel.totalTouchedTime += currentTouchTime;
+            jewel.touchStartTime = Date.now(); // Reset start time for the next check
 
-            // If the total touch time exceeds the jewel's lifecycle, remove it
-            if (
-              jewel.totalTouchTime >= jewel.lifecycle &&
-              !jewel.removeScheduled
-            ) {
-              handleJewelLifecycle(i, jewel, 5000, jewel.lifecycle); // 5000ms respawn delay
+            // Remove the jewel if it has been touched for longer than its lifecycle
+            if (jewel.totalTouchedTime >= jewel.lifecycle) {
+              const removedJewelPosition = {
+                x: jewel.x,
+                y: jewel.y,
+                lifecycle: jewel.lifecycle,
+              }; // Store position
+              island.jewels.splice(i, 1); // Remove the jewel
+
+              // Respawn the jewel after a delay
+              respawnJewel(
+                removedJewelPosition.x,
+                removedJewelPosition.y,
+                removedJewelPosition.lifecycle
+              );
+              return; // Skip the rest of the loop for this jewel since it's removed
             }
           }
         } else {
-          // If the character is not touching the jewel, stop counting
-          jewel.lastTouchTime = null;
+          // If the jewel was touched but is no longer being touched, stop tracking
+          if (jewel.touched) {
+            jewel.touched = false;
+            let currentTouchTime = Date.now() - jewel.touchStartTime;
+            jewel.totalTouchedTime += currentTouchTime; // Accumulate total touch time
+          }
         }
 
-        // Draw each jewel at its position
+        // Draw the jewel
         this.context.drawImage(
-          imageRepository.jewel[jewel.jewelType],
+          imageRepository.jewel[island.jewelType],
           0,
           0,
-          imageRepository.jewel[jewel.jewelType].width,
-          imageRepository.jewel[jewel.jewelType].height,
+          imageRepository.jewel[island.jewelType].width,
+          imageRepository.jewel[island.jewelType].height,
           island.x - game.viewPosX + jewel.x,
           island.y - game.viewPosY + jewel.y,
           game.jewelWidth,
           game.jewelHeight
         );
-      }
+      });
 
-      // After processing all jewels, update the game's movement flags
-      game.movableRight = movableRight;
-      game.movableDown = movableDown;
-      game.movableLeft = movableLeft;
-      game.movableUp = movableUp;
+      // Update game's movement flags based on the results of collisions
+      Object.assign(game, movementFlags);
     });
   };
 }
+
 Islands.prototype = new Drawable();
 
 function checkCollision(x1, y1, x2, y2, w1, w2, h1, h2) {
@@ -613,6 +582,49 @@ function Game() {
   this.jewelWidth = 250;
   this.jewelHeight = 300;
 
+  this.initJewel = function (x, y, lifecycle) {
+    return {
+      x: x,
+      y: y,
+      lifecycle: lifecycle, // Total lifecycle time in milliseconds
+      touched: false, // Tracks if the jewel was touched
+      touchedTime: null, // Time when it was first touched
+      touchElapsedTime: 0, // Total time jewel has been touched
+    };
+  };
+  this.generateJewelArray = function (
+    numJewels,
+    xRange,
+    yRange,
+    minLifecycle,
+    maxLifecycle
+  ) {
+    const jewels = [];
+
+    for (let i = 0; i < numJewels; i++) {
+      // Random x and y positions within the given range
+      const x =
+        this.jewelWidth *
+        Math.floor((Math.random() * xRange) / this.jewelWidth);
+      const y =
+        this.jewelHeight *
+        Math.floor((Math.random() * xRange) / this.jewelHeight);
+
+      // Random lifecycle between minLifecycle and maxLifecycle (in milliseconds)
+      const lifecycle =
+        Math.floor(Math.random() * (maxLifecycle - minLifecycle + 1)) +
+        minLifecycle;
+
+      // Add a new jewel with random position and lifecycle
+      jewels.push(this.initJewel(x, y, lifecycle));
+    }
+
+    return jewels;
+  };
+
+  // Example usage
+  const initialJewels = this.generateJewelArray(7, 1800, 1800, 2000, 4000); // 10 j
+
   this.islandData = [
     {
       id: 1,
@@ -620,44 +632,34 @@ function Game() {
       y: 0,
       width: 1800,
       height: 1800,
-      jewels: [
-        {
-          x: 200,
-          y: 200,
-          jewelType: "ruby-mine",
-          lifecycle: 5000,
-        },
-        {
-          x: 500,
-          y: 500,
-          jewelType: "ruby-mine",
-          lifecycle: 5000,
-        },
-        {
-          x: 200,
-          y: 1300,
-          jewelType: "ruby-mine",
-          lifecycle: 5000,
-        },
-        {
-          x: 500,
-          y: 1000,
-          jewelType: "ruby-mine",
-          lifecycle: 5000,
-        },
-        {
-          x: 700,
-          y: 400,
-          jewelType: "ruby-mine",
-          lifecycle: 5000,
-        },
-        {
-          x: 1200,
-          y: 1200,
-          jewelType: "ruby-mine",
-          lifecycle: 5000,
-        },
-      ],
+      jewelType: "ruby-mine",
+      // jewels: [
+      //   {
+      //     x: 200,
+      //     y: 200,
+      //   },
+      //   {
+      //     x: 500,
+      //     y: 500,
+      //   },
+      //   {
+      //     x: 200,
+      //     y: 1300,
+      //   },
+      //   {
+      //     x: 500,
+      //     y: 1000,
+      //   },
+      //   {
+      //     x: 700,
+      //     y: 400,
+      //   },
+      //   {
+      //     x: 1200,
+      //     y: 1200,
+      //   },
+      // ],
+      jewels: initialJewels,
     },
   ];
 
