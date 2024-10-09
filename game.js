@@ -48,6 +48,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     document.getElementById("background").style.display = "block";
     document.getElementById("character").style.display = "block";
+    document.getElementById("status").style.display = "block";
 
     init();
   });
@@ -81,6 +82,13 @@ var imageRepository = new (function () {
       "work-up": new Image(),
       "work-down": new Image(),
     });
+
+  this.status = {
+    ruby: new Image(),
+    emerald: new Image(),
+    amethyst: new Image(),
+    money: new Image(),
+  };
 
   this.jewel = {
     "amethyst-mine": new Image(),
@@ -120,6 +128,15 @@ var imageRepository = new (function () {
   Object.keys(this.jewel).forEach((key) => {
     this.jewel[key].src = `media/graphics/sprites/ingame/${key}.png`;
     this.jewel[key].onload = function () {
+      imageLoaded();
+    };
+  });
+
+  Object.keys(this.status).forEach((key) => {
+    this.status[
+      key
+    ].src = `media/graphics/sprites/ingame/${key}-gem-particle.png`;
+    this.status[key].onload = function () {
       imageLoaded();
     };
   });
@@ -430,6 +447,75 @@ function Islands() {
   this.fadeOutDuration = 250; // Duration for fade-out in milliseconds
   this.fadeOutStartTime = null; // Tracks when fade-out starts
 
+  this.drawParticles = function () {
+    if (game.curMintJewel !== null) {
+      if (game.curMintJewel.pieces.length == 0) {
+        game.curMintJewel = null;
+        return;
+      } else {
+      }
+      console.log("game.cur", game.curMintJewel.index);
+      game.curMintJewel.pieces.forEach((piece, id) => {
+        piece.speed += 0.05;
+        let dx = 0;
+        let dy = 0;
+        if (
+          Math.abs(piece.x - piece.motion[piece.curMotionId].targetX) > 5 &&
+          Math.abs(piece.y - piece.motion[piece.curMotionId].targetY) > 5
+        ) {
+          dx =
+            ((piece.motion[piece.curMotionId].targetX - piece.x) / 50) *
+            Math.log(piece.speed);
+          dy =
+            ((piece.motion[piece.curMotionId].targetY - piece.y) / 50) *
+            Math.log(piece.speed);
+        } else {
+          console.log(
+            "complete:",
+            piece.motion[piece.curMotionId],
+            piece.motion.length
+          );
+          if (piece.curMotionId === piece.motion.length - 1) {
+            // game.curMintJewel.index += 1;
+            game.curMintJewel.pieces.splice(id, 1);
+            game.ownedJewel[game.curMintJewel.type] += 1;
+          } else {
+            piece.curMotionId++;
+          }
+        }
+
+        piece.x += dx;
+        piece.y += dy;
+
+        this.context.drawImage(
+          imageRepository.status[game.curMintJewel.type],
+          0,
+          0,
+          imageRepository.status[game.curMintJewel.type].width,
+          imageRepository.status[game.curMintJewel.type].height,
+          piece.x,
+          piece.y,
+          // game.viewSizeX / 2,
+          // game.viewSizeY / 2,
+          piece.width,
+          piece.height
+        );
+      });
+
+      this.context.drawImage(
+        imageRepository.status[game.curMintJewel.type],
+        0,
+        0,
+        imageRepository.status[game.curMintJewel.type].width,
+        imageRepository.status[game.curMintJewel.type].height,
+        game.curMintJewel.x,
+        game.curMintJewel.y,
+        imageRepository.status[game.curMintJewel.type].width,
+        imageRepository.status[game.curMintJewel.type].height,
+      );
+    }
+  };
+
   // Method to draw islands and handle jewel lifecycle
   this.draw = function () {
     this.data.forEach((island) => {
@@ -558,9 +644,9 @@ function Islands() {
               this.touchedJewelId = null;
               this.jewelMoveSpeed = 0;
               game.mining = false;
-              game.ownedJewel[island.jewelType.split("-")[0]] += parseInt(
-                Math.random() * 3 + 10
-              );
+              // game.ownedJewel[island.jewelType.split("-")[0]] += parseInt(
+              //   Math.random() * 3 + 8
+              // );
 
               // Start fade out process
               this.fadeOutStartTime = Date.now();
@@ -597,15 +683,77 @@ function Islands() {
             this.touchedJewelId = null;
             this.jewelMoveSpeed = 0;
             game.mining = false;
-            game.ownedJewel[island.jewelType.split("-")[0]] += parseInt(
-              Math.random() * 3 + 10
-            );
             // Respawn the jewel after a delay
             respawnJewel(
               removedJewelPosition.x,
               removedJewelPosition.y,
               removedJewelPosition.lifecycle
             );
+            game.curMintJewel = {
+              type: island.jewelType.split("-")[0],
+              index: 0,
+              pieces: Array(parseInt(Math.random() * 4 + 8))
+                .fill()
+                .map((_, i) => {
+                  let size = parseInt(Math.random() * 50 + 50);
+                  return {
+                    x:
+                      island.x -
+                      game.viewPosX +
+                      jewel.x +
+                      game.jewelWidth -
+                      jewel.width / 2,
+                    y:
+                      island.y -
+                      game.viewPosY +
+                      jewel.y +
+                      game.jewelHeight -
+                      jewel.height / 2,
+                    speed: 1,
+                    width: size,
+                    height: size,
+                    amount: 1,
+                    curMotionId: 0,
+                    motion: [
+                      {
+                        targetX:
+                          parseInt(
+                            (Math.random() * 100 + 200) *
+                              (Math.random() * 2 - 1)
+                          ) +
+                          island.x -
+                          game.viewPosX +
+                          jewel.x +
+                          game.jewelWidth -
+                          jewel.width / 2,
+                        targetY:
+                          parseInt(
+                            (Math.random() * 100 + 200) *
+                              (Math.random() * 2 - 1)
+                          ) +
+                          island.y -
+                          game.viewPosY +
+                          jewel.y +
+                          game.jewelHeight -
+                          jewel.height / 2,
+                      },
+                      {
+                        targetX: game.viewSizeX / 2,
+                        targetY: game.viewSizeY / 2,
+                      },
+                      {
+                        type: "linear",
+                        targetX: 0,
+                        targetY:
+                          Object.keys(game.ownedJewel).indexOf(
+                            island.jewelType.split("-")[0]
+                          ) * 100,
+                        delay: 3000,
+                      },
+                    ],
+                  };
+                }),
+            };
             return; // Skip the rest of the loop for this jewel since it's removed
           }
         }
@@ -657,49 +805,66 @@ function Islands() {
 
       // Update game's movement flags based on the results of collisions
       Object.assign(game, movementFlags);
+      this.drawParticles();
     });
 
     // Allow character to move even while touching a jewel or during fade-out
     game.character.move();
   };
 }
-
 Islands.prototype = new Drawable();
 
-function checkCollision(x1, y1, x2, y2, w1, w2, h1, h2) {
-  let centerX1 = x1 + w1 / 2;
-  let centerY1 = y1 + h1 / 2;
-  let centerX2 = x2 + w2 / 2;
-  let centerY2 = y2 + h2 / 2;
+function Status() {
+  this.init = function (x, y, width, height) {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+  };
+  this.mintJewelMotion = [
+    {
+      type: "linear",
+      targetX: game.viewSizeX / 2,
+      targetY: game.viewSizeY / 2,
+      delay: 3000,
+    },
+  ];
+  this.curMotionId = 0;
+  this.oneComplete = false;
 
-  let minDistance = Math.min(w1, h1) / 2 + Math.min(w2, h2) / 2;
-  let dx = centerX1 - centerX2;
-  let dy = centerY1 - centerY2;
-  let distance = Math.sqrt(dx * dx + dy * dy);
+  this.drawJewelStatus = function (jewel, x, y) {
+    this.context.drawImage(
+      imageRepository.status[jewel],
+      0,
+      0,
+      imageRepository.status[jewel].width,
+      imageRepository.status[jewel].height,
+      x,
+      y,
+      100,
+      100
+    );
 
-  let right = true;
-  let down = true;
-  let up = true;
-  let left = true;
+    this.context.font = "bold 60px Arial";
+    this.context.fillStyle = "black";
+    this.context.strokeStyle = "white";
+    this.context.lineWidth = 5;
+    this.context.strokeText(game.ownedJewel[jewel], x + 100, y + 70);
+    this.context.fillText(game.ownedJewel[jewel], x + 100, y + 70);
+    // console.log("fill", game.ownedJewel[jewel]);
+  };
 
-  if (distance < minDistance) {
-    if (Math.abs(dx) > Math.abs(dy)) {
-      if (dx > 0) {
-        left = false;
-      } else {
-        right = false;
-      }
-    } else {
-      if (dy > 0) {
-        up = false;
-      } else {
-        down = false;
-      }
-    }
-  }
-
-  return { up, down, left, right };
+  this.draw = function () {
+    // this.context.beginPath();
+    this.context.fillStyle = "red";
+    this.context.clearRect(0, 0, game.viewSizeX, game.viewSizeY);
+    Object.keys(game.ownedJewel).forEach((key, index) => {
+      this.drawJewelStatus(key, 0, 100 * index);
+    });
+    // this.drawParticles();
+  };
 }
+Status.prototype = new Drawable();
 
 function Game() {
   this.SizeX = 5000;
@@ -724,9 +889,11 @@ function Game() {
   this.jewelWidth = 250;
   this.jewelHeight = 300;
   this.mining = false;
+  this.curMintJewel = null;
   this.ownedJewel = {
     ruby: 0,
     emerald: 0,
+    amethyst: 0,
     money: 0,
   };
 
@@ -751,21 +918,43 @@ function Game() {
   ) {
     const jewels = [];
 
+    // Helper function to check if two jewels overlap
+    const isOverlapping = (x1, y1, x2, y2, width, height) => {
+      return (
+        x1 < x2 + width &&
+        x1 + width > x2 &&
+        y1 < y2 + height &&
+        y1 + height > y2
+      );
+    };
+
     for (let i = 0; i < numJewels; i++) {
-      // Random x and y positions within the given range
-      const x =
-        this.jewelWidth *
-        Math.floor((Math.random() * xRange) / this.jewelWidth);
-      const y =
-        this.jewelHeight *
-        Math.floor((Math.random() * xRange) / this.jewelHeight);
+      let x, y, isValidPosition;
+
+      do {
+        // Generate random x and y positions within bounds
+        x = Math.floor(Math.random() * (xRange - this.jewelWidth));
+        y = Math.floor(Math.random() * (yRange - this.jewelHeight));
+
+        // Check if the new jewel overlaps with any existing jewels
+        isValidPosition = jewels.every(
+          (jewel) =>
+            !isOverlapping(
+              x,
+              y,
+              jewel.x,
+              jewel.y,
+              this.jewelWidth,
+              this.jewelHeight
+            )
+        );
+      } while (!isValidPosition); // Retry if overlapping occurs
 
       // Random lifecycle between minLifecycle and maxLifecycle (in milliseconds)
       const lifecycle =
-        Math.floor(Math.random() * (maxLifecycle - minLifecycle + 1)) +
-        minLifecycle;
+        Math.random() * (maxLifecycle - minLifecycle) + minLifecycle;
 
-      // Add a new jewel with random position and lifecycle
+      // Add the new jewel with random position and lifecycle
       jewels.push(
         this.initJewel(x, y, this.jewelWidth, this.jewelHeight, lifecycle)
       );
@@ -773,7 +962,6 @@ function Game() {
 
     return jewels;
   };
-
   this.islandData = [
     {
       id: 1,
@@ -783,7 +971,7 @@ function Game() {
       height: 1800,
       jewelType: "ruby-mine",
       jewels: (initialJewels = this.generateJewelArray(
-        7,
+        8,
         1800,
         1800,
         2000,
@@ -802,10 +990,14 @@ function Game() {
     this.characterCanvas = document.getElementById("character");
     this.characterCtx = this.characterCanvas.getContext("2d");
 
-    if (this.ctx) {
+    this.statusCanvas = document.getElementById("status");
+    this.statusCtx = this.statusCanvas.getContext("2d");
+
+    if (this.ctx && this.characterCtx && this.statusCtx) {
       // Initialize contexts
       Background.prototype.context = this.ctx;
       Character.prototype.context = this.characterCtx;
+      Status.prototype.context = this.statusCtx;
 
       // Initialize background
       this.background = new Background();
@@ -825,6 +1017,10 @@ function Game() {
       this.islands = new Islands();
       Islands.prototype.data = this.islandData;
       Islands.prototype.context = this.ctx;
+
+      this.status = new Status();
+      Status.prototype.canvasHeight = this.statusCanvas.height;
+      Status.prototype.canvasWidth = this.statusCanvas.width;
 
       this.resizeCanvas();
       window.addEventListener("resize", () => this.resizeCanvas());
@@ -929,11 +1125,8 @@ function Game() {
     this.characterCanvas.width = window.innerWidth;
     this.characterCanvas.height = window.innerHeight;
 
-    Background.prototype.canvasHeight = this.canvas.height;
-    Background.prototype.canvasWidth = this.canvas.width;
-
-    Character.prototype.canvasHeight = this.characterCanvas.height;
-    Character.prototype.canvasWidth = this.characterCanvas.width;
+    this.statusCanvas.width = window.innerWidth;
+    this.statusCanvas.height = window.innerHeight;
 
     if (this.canvas.width > this.canvas.height) {
       this.viewSizeX =
@@ -955,10 +1148,20 @@ function Game() {
       Math.min(this.viewSizeY, this.canvas.height) /
       Math.max(this.viewSizeY, this.canvas.height);
 
+    Background.prototype.canvasHeight = this.canvas.height;
+    Background.prototype.canvasWidth = this.canvas.width;
+
+    Character.prototype.canvasHeight = this.characterCanvas.height;
+    Character.prototype.canvasWidth = this.characterCanvas.width;
+    Character.prototype.drawX = this.viewSizeX / 2 - Character.prototype.sizeX;
+    Character.prototype.drawY = this.viewSizeY / 2 - Character.prototype.sizeY;
+
+    Status.prototype.canvasHeight = this.statusCanvas.height;
+    Status.prototype.canvasWidth = this.statusCanvas.width;
+
     this.ctx.scale(ratioX, ratioY);
     this.characterCtx.scale(ratioX, ratioY);
-    Character.prototype.drawX = game.viewSizeX / 2 - Character.prototype.sizeX;
-    Character.prototype.drawY = game.viewSizeY / 2 - Character.prototype.sizeY;
+    this.statusCtx.scale(ratioX, ratioY);
   };
 
   this.start = function () {
@@ -971,7 +1174,44 @@ function animate() {
   game.background.draw();
   game.islands.draw();
   game.character.draw();
-  console.log(game.ownedJewel);
+  game.status.draw();
+
+  // console.log(game.ownedJewel);
+}
+
+function checkCollision(x1, y1, x2, y2, w1, w2, h1, h2) {
+  let centerX1 = x1 + w1 / 2;
+  let centerY1 = y1 + h1 / 2;
+  let centerX2 = x2 + w2 / 2;
+  let centerY2 = y2 + h2 / 2;
+
+  let minDistance = Math.min(w1, h1) / 2 + Math.min(w2, h2) / 2;
+  let dx = centerX1 - centerX2;
+  let dy = centerY1 - centerY2;
+  let distance = Math.sqrt(dx * dx + dy * dy);
+
+  let right = true;
+  let down = true;
+  let up = true;
+  let left = true;
+
+  if (distance < minDistance) {
+    if (Math.abs(dx) > Math.abs(dy)) {
+      if (dx > 0) {
+        left = false;
+      } else {
+        right = false;
+      }
+    } else {
+      if (dy > 0) {
+        up = false;
+      } else {
+        down = false;
+      }
+    }
+  }
+
+  return { up, down, left, right };
 }
 
 // The keycodes that will be mapped when a user presses a button.
