@@ -83,6 +83,12 @@ var imageRepository = new (function () {
       "work-down": new Image(),
     });
 
+  this.particles = {
+    ruby: new Image(),
+    emerald: new Image(),
+    amethyst: new Image(),
+    money: new Image(),
+  };
   this.status = {
     ruby: new Image(),
     emerald: new Image(),
@@ -132,10 +138,17 @@ var imageRepository = new (function () {
     };
   });
 
-  Object.keys(this.status).forEach((key) => {
-    this.status[
+  Object.keys(this.particles).forEach((key) => {
+    this.particles[
       key
     ].src = `media/graphics/sprites/ingame/${key}-gem-particle.png`;
+    this.particles[key].onload = function () {
+      imageLoaded();
+    };
+  });
+
+  Object.keys(this.status).forEach((key) => {
+    this.status[key].src = `media/graphics/sprites/ui/${key}-gem.png`;
     this.status[key].onload = function () {
       imageLoaded();
     };
@@ -454,7 +467,7 @@ function Islands() {
         return;
       } else {
       }
-      console.log("game.cur", game.curMintJewel.index);
+
       game.curMintJewel.pieces.forEach((piece, id) => {
         piece.speed += 0.05;
         let dx = 0;
@@ -488,11 +501,11 @@ function Islands() {
         piece.y += dy;
 
         this.context.drawImage(
-          imageRepository.status[game.curMintJewel.type],
+          imageRepository.particles[game.curMintJewel.type],
           0,
           0,
-          imageRepository.status[game.curMintJewel.type].width,
-          imageRepository.status[game.curMintJewel.type].height,
+          imageRepository.particles[game.curMintJewel.type].width,
+          imageRepository.particles[game.curMintJewel.type].height,
           piece.x,
           piece.y,
           // game.viewSizeX / 2,
@@ -500,19 +513,22 @@ function Islands() {
           piece.width,
           piece.height
         );
+        
+        this.context.font = "bold 60px Arial";
+        this.context.fillStyle = "black";
+        this.context.strokeStyle = "white";
+        this.context.lineWidth = 5;
+        this.context.strokeText(
+          "+" + game.curMintJewel.pieces.length,
+          game.curMintJewel.pieces[0].x,
+          game.curMintJewel.pieces[0].y
+        );
+        this.context.fillText(
+          "+" + game.curMintJewel.pieces.length,
+          game.curMintJewel.pieces[0].x,
+          game.curMintJewel.pieces[0].y
+        );
       });
-
-      this.context.drawImage(
-        imageRepository.status[game.curMintJewel.type],
-        0,
-        0,
-        imageRepository.status[game.curMintJewel.type].width,
-        imageRepository.status[game.curMintJewel.type].height,
-        game.curMintJewel.x,
-        game.curMintJewel.y,
-        imageRepository.status[game.curMintJewel.type].width,
-        imageRepository.status[game.curMintJewel.type].height,
-      );
     }
   };
 
@@ -815,6 +831,9 @@ function Islands() {
 Islands.prototype = new Drawable();
 
 function Status() {
+  this.showScoreAlpha = 1;
+  this.showScoreY = 0;
+
   this.init = function (x, y, width, height) {
     this.x = x;
     this.y = y;
@@ -833,6 +852,7 @@ function Status() {
   this.oneComplete = false;
 
   this.drawJewelStatus = function (jewel, x, y) {
+    this.context.globalAlpha = 1;
     this.context.drawImage(
       imageRepository.status[jewel],
       0,
@@ -854,6 +874,30 @@ function Status() {
     // console.log("fill", game.ownedJewel[jewel]);
   };
 
+  this.drawMint = function () {
+    if (game.curMintJewel) {
+      this.showScoreAlpha -= 0.01;
+      this.showScoreY += 1;
+      this.context.globalAlpha = this.showScoreAlpha;
+      this.context.drawImage(
+        imageRepository.status[game.curMintJewel.type],
+        0,
+        0,
+        imageRepository.status[game.curMintJewel.type].width,
+        imageRepository.status[game.curMintJewel.type].height,
+        game.characterX - game.viewPosX + game.characterWidth / 4,
+        game.characterY -
+          game.viewPosY -
+          game.characterHeight -
+          this.showScoreY,
+        100,
+        100
+      );
+
+      this.context.globalAlpha = 1;
+    }
+  };
+
   this.draw = function () {
     // this.context.beginPath();
     this.context.fillStyle = "red";
@@ -861,7 +905,7 @@ function Status() {
     Object.keys(game.ownedJewel).forEach((key, index) => {
       this.drawJewelStatus(key, 0, 100 * index);
     });
-    // this.drawParticles();
+    // this.drawMint();
   };
 }
 Status.prototype = new Drawable();
