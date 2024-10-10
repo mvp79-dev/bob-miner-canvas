@@ -69,19 +69,24 @@ var imageRepository = new (function () {
   };
 
   this.control = new Image();
-  (this.island = new Image()),
-    (this.character = {
-      "walk-up": new Image(),
-      "walk-down": new Image(),
-      "walk-left": new Image(),
-      "walk-right": new Image(),
-      "walk-up-left": new Image(),
-      "walk-down-left": new Image(),
-      "walk-up-right": new Image(),
-      "walk-down-right": new Image(),
-      "work-up": new Image(),
-      "work-down": new Image(),
-    });
+  this.island = new Image();
+  this.character = {
+    "walk-up": new Image(),
+    "walk-down": new Image(),
+    "walk-left": new Image(),
+    "walk-right": new Image(),
+    "walk-up-left": new Image(),
+    "walk-down-left": new Image(),
+    "walk-up-right": new Image(),
+    "walk-down-right": new Image(),
+    "work-up": new Image(),
+    "work-down": new Image(),
+  };
+
+  this.bridge = {
+    horizontal: new Image(),
+    vertical: new Image(),
+  };
 
   this.particles = {
     ruby: new Image(),
@@ -134,6 +139,13 @@ var imageRepository = new (function () {
   Object.keys(this.jewel).forEach((key) => {
     this.jewel[key].src = `media/graphics/sprites/ingame/${key}.png`;
     this.jewel[key].onload = function () {
+      imageLoaded();
+    };
+  });
+
+  Object.keys(this.bridge).forEach((key) => {
+    this.bridge[key].src = `media/graphics/sprites/ingame/bridge-${key}.png`;
+    this.bridge[key].onload = function () {
       imageLoaded();
     };
   });
@@ -513,21 +525,22 @@ function Islands() {
           piece.width,
           piece.height
         );
-        
-        this.context.font = "bold 60px Arial";
-        this.context.fillStyle = "black";
-        this.context.strokeStyle = "white";
-        this.context.lineWidth = 5;
-        this.context.strokeText(
-          "+" + game.curMintJewel.pieces.length,
-          game.curMintJewel.pieces[0].x,
-          game.curMintJewel.pieces[0].y
-        );
-        this.context.fillText(
-          "+" + game.curMintJewel.pieces.length,
-          game.curMintJewel.pieces[0].x,
-          game.curMintJewel.pieces[0].y
-        );
+        if (game.curMintJewel.pieces.length) {
+          this.context.font = "bold 60px Arial";
+          this.context.fillStyle = "black";
+          this.context.strokeStyle = "white";
+          this.context.lineWidth = 5;
+          this.context.strokeText(
+            "+" + game.curMintJewel.pieces.length,
+            game.curMintJewel.pieces[game.curMintJewel.pieces.length - 1].x,
+            game.curMintJewel.pieces[game.curMintJewel.pieces.length - 1].y
+          );
+          this.context.fillText(
+            "+" + game.curMintJewel.pieces.length,
+            game.curMintJewel.pieces[game.curMintJewel.pieces.length - 1].x,
+            game.curMintJewel.pieces[game.curMintJewel.pieces.length - 1].y
+          );
+        }
       });
     }
   };
@@ -535,6 +548,46 @@ function Islands() {
   // Method to draw islands and handle jewel lifecycle
   this.draw = function () {
     this.data.forEach((island) => {
+      // Initialize movement flags
+      let movementFlags = {
+        movableUp: true,
+        movableDown: true,
+        movableLeft: true,
+        movableRight: true,
+      };
+
+      let collisionJewel;
+      let insideIsland;
+      let insideBridge;
+
+      // Helper function to update movement flags
+      const updateMovementFlags = (conditions) => {
+        conditions.forEach((condition) => {
+          movementFlags.movableRight =
+            movementFlags.movableRight && condition.right;
+          movementFlags.movableDown =
+            movementFlags.movableDown && condition.down;
+          movementFlags.movableLeft =
+            movementFlags.movableLeft && condition.left;
+          movementFlags.movableUp = movementFlags.movableUp && condition.up;
+        });
+      };
+
+      insideIsland = checkInside(
+        island.x,
+        island.y,
+        game.characterX,
+        game.characterY,
+        island.width,
+        game.characterWidth,
+        island.height,
+        game.characterHeight,
+        {
+          size: imageRepository.bridge["vertical"].width,
+          length: imageRepository.bridge["vertical"].height,
+          direction: { up: true, left: true, right: true, down: true },
+        }
+      );
       // Draw the island
       this.context.drawImage(
         imageRepository.island,
@@ -547,32 +600,73 @@ function Islands() {
         imageRepository.island.width,
         imageRepository.island.height
       );
+      if (island.bridges) {
+        island.bridges.forEach((bridge) => {
+          let type =
+            bridge.direction == "left" || bridge.direction == "right"
+              ? "horizontal"
+              : "vertical";
+          bridge.width = imageRepository.bridge[type].width;
+          bridge.height = imageRepository.bridge[type].height;
 
-      // Initialize movement flags
-      let movementFlags = {
-        movableUp: true,
-        movableDown: true,
-        movableLeft: true,
-        movableRight: true,
-      };
+          switch (bridge.direction) {
+            case "up":
+              bridge.x =
+                island.x - game.viewPosX + island.width / 2 - bridge.width / 2;
+              bridge.y = island.y - game.viewPosY - bridge.height;
+              break;
+            case "down":
+              bridge.x =
+                island.x - game.viewPosX + island.width / 2 - bridge.width / 2;
+              bridge.y = island.y - game.viewPosY + island.height;
+              break;
+            case "left":
+              bridge.x = island.x - game.viewPosX - bridge.width;
+              bridge.y =
+                island.y -
+                game.viewPosY +
+                island.height / 2 -
+                bridge.height / 2;
+              break;
+            case "right":
+              bridge.x = island.x - game.viewPosX + island.width;
+              bridge.y =
+                island.y -
+                game.viewPosY +
+                island.height / 2 -
+                bridge.height / 2;
+              break;
+            default:
+              bridge.x = 0;
+              bridge.y = 0;
+              break;
+          }
+          this.context.drawImage(
+            imageRepository.bridge[type],
+            0,
+            0,
+            imageRepository.bridge[type].width,
+            imageRepository.bridge[type].height,
+            bridge.x,
+            bridge.y,
+            bridge.width,
+            bridge.height
+          );
 
-      // Helper function to update movement flags
-      const updateMovementFlags = (collision) => {
-        const { up, down, left, right } = collision;
-        movementFlags.movableRight =
-          movementFlags.movableRight &&
-          right &&
-          island.x + island.width > game.characterX + game.characterWidth;
-        movementFlags.movableDown =
-          movementFlags.movableDown &&
-          down &&
-          island.y + island.height > game.characterY + game.characterHeight;
-        movementFlags.movableLeft =
-          movementFlags.movableLeft && left && island.x <= game.characterX;
-        movementFlags.movableUp =
-          movementFlags.movableUp && up && island.y < game.characterY;
-      };
+          // insideBridge = checkInside(
+          //   bridge.x,
+          //   bridge.y,
+          //   game.characterX,
+          //   game.characterY,
+          //   bridge.width,
+          //   game.characterWidth,
+          //   bridge.height,
+          //   game.characterHeight
+          // );
+        });
+      }
 
+      // console.log("this.inside", insideIsland);
       // Helper function to respawn a jewel after removal
       // Helper function to calculate the distance between two points
       const calculateDistance = (x1, y1, x2, y2) => {
@@ -617,7 +711,7 @@ function Islands() {
         const jewelY = island.y + jewel.y;
 
         // Check collision with character
-        const collision = checkCollision(
+        collisionJewel = checkCollision(
           game.characterX,
           game.characterY,
           jewelX,
@@ -629,14 +723,13 @@ function Islands() {
         );
 
         // Update movement flags based on collisions
-        updateMovementFlags(collision);
-
+        updateMovementFlags([collisionJewel, insideIsland]);
         // Handle jewel touching logic
         if (
-          (!collision.up ||
-            !collision.down ||
-            !collision.left ||
-            !collision.right) &&
+          (!collisionJewel.up ||
+            !collisionJewel.down ||
+            !collisionJewel.left ||
+            !collisionJewel.right) &&
           !jewel.isFadingOut
         ) {
           game.mining = true;
@@ -819,9 +912,10 @@ function Islands() {
         this.context.globalAlpha = 1;
       });
 
-      // Update game's movement flags based on the results of collisions
-      Object.assign(game, movementFlags);
+      // Update game's movement flags based on the results of collisionJewels
       this.drawParticles();
+
+      Object.assign(game, movementFlags);
     });
 
     // Allow character to move even while touching a jewel or during fade-out
@@ -1014,6 +1108,28 @@ function Game() {
       width: 1800,
       height: 1800,
       jewelType: "ruby-mine",
+      bridges: [
+        {
+          type: "ruby",
+          value: 50,
+          direction: "left",
+        },
+        {
+          type: "ruby",
+          value: 50,
+          direction: "up",
+        },
+        {
+          type: "ruby",
+          value: 50,
+          direction: "right",
+        },
+        {
+          type: "ruby",
+          value: 50,
+          direction: "down",
+        },
+      ],
       jewels: (initialJewels = this.generateJewelArray(
         8,
         1800,
@@ -1026,6 +1142,8 @@ function Game() {
 
   this.viewSizeX = this.viewSize;
   this.viewSizeY = this.viewSize;
+  this.bridgeWidth = 418;
+  this.bridgeHeight = 1375;
 
   this.init = function () {
     this.canvas = document.getElementById("background");
@@ -1256,6 +1374,59 @@ function checkCollision(x1, y1, x2, y2, w1, w2, h1, h2) {
   }
 
   return { up, down, left, right };
+}
+
+function checkInside(x1, y1, x2, y2, w1, w2, h1, h2, hole = null) {
+  let outRight = x1 + w1 < x2 + w2;
+  let outLeft = x1 > x2;
+  let outUp = y1 > y2;
+  let outDown = y1 + h1 < y2 + h2;
+  let out = {
+    up: outUp,
+    down: outDown,
+    left: outLeft,
+    right: outRight,
+  };
+
+  let up, down, left, right;
+
+  right = x1 + w1 > x2 + w2;
+  down = y1 + h1 > y2 + h2;
+  left = x1 < x2;
+  up = y1 < y2;
+
+  if (out.up || out.down) {
+    left =
+      hole &&
+      hole.size &&
+      hole.direction.up &&
+      x1 + h1 / 2 - hole.size / 2 < x2;
+    right =
+      hole &&
+      hole.size &&
+      hole.direction.up &&
+      x1 + h1 / 2 + hole.size / 2 > x2 + w2;
+    up = left && right;
+    down = left && right;
+  }
+
+  if (out.left || out.right) {
+    up =
+      hole &&
+      hole.size &&
+      hole.direction.left &&
+      y1 + h1 / 2 - hole.size / 2 < y2;
+    down =
+      hole &&
+      hole.size &&
+      hole.direction.left &&
+      y1 + h1 / 2 + hole.size / 2 > y2 + h2;
+    left = up && down;
+    right = up && down;
+  }
+  console.log("checkInside", out, { up, down, left, right });
+
+  return { up, down, left, right, out };
 }
 
 // The keycodes that will be mapped when a user presses a button.
