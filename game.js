@@ -426,9 +426,10 @@ function Character() {
         if (
           game.onBridge &&
           (game.onBridge.out.left || game.onBridge.out.right) &&
-          !game.onBridge.left
+          !game.onBridge.out.up &&
+          !game.onBridge.out.down &&
+          !game.onBridge.right
         ) {
-          console.log("game.onBridge", game.onBridge);
           game.characterY = game.onBridge.up
             ? game.onBridge.holeBoundary.down - game.characterHeight - 5
             : game.onBridge.holeBoundary.up + 5;
@@ -444,13 +445,15 @@ function Character() {
         if (
           game.onBridge &&
           (game.onBridge.out.left || game.onBridge.out.right) &&
-          !game.onBridge.right
+          !game.onBridge.out.up &&
+          !game.onBridge.out.down &&
+          !game.onBridge.left
         ) {
-          console.log("game.onBridge", game.onBridge);
           game.characterY = game.onBridge.up
             ? game.onBridge.holeBoundary.down - game.characterHeight - 5
             : game.onBridge.holeBoundary.up + 5;
         }
+
         if (game.movableRight) {
           game.characterX += this.speed;
           game.viewPosX += this.speed;
@@ -460,13 +463,14 @@ function Character() {
         if (
           game.onBridge &&
           (game.onBridge.out.up || game.onBridge.out.down) &&
-          !game.onBridge.up
+          !game.onBridge.up &&
+          !game.onBridge.down
         ) {
-          console.log("game.onBridge", game.onBridge);
           game.characterX = game.onBridge.right
             ? game.onBridge.holeBoundary.left + 5
             : game.onBridge.holeBoundary.right - game.character.width - 5;
         }
+
         if (game.movableUp) {
           game.characterY -= this.speed;
           game.viewPosY -= this.speed;
@@ -476,13 +480,14 @@ function Character() {
         if (
           game.onBridge &&
           (game.onBridge.out.up || game.onBridge.out.down) &&
+          !game.onBridge.up &&
           !game.onBridge.down
         ) {
-          console.log("game.onBridge", game.onBridge);
           game.characterX = game.onBridge.right
             ? game.onBridge.holeBoundary.left + 5
             : game.onBridge.holeBoundary.right - game.character.width - 5;
         }
+
         if (game.movableDown) {
           game.characterY += this.speed;
           game.viewPosY += this.speed;
@@ -599,7 +604,7 @@ function Islands() {
 
   // Method to draw islands and handle jewel lifecycle
   this.draw = function () {
-    this.data.forEach((island) => {
+    this.data.forEach((island, index) => {
       // Initialize movement flags
       let movementFlags = {
         movableUp: true,
@@ -610,8 +615,6 @@ function Islands() {
 
       let collisionJewel;
       let insideIsland;
-      let insideBridge;
-
       // Helper function to update movement flags
       const updateMovementFlags = (conditions) => {
         conditions.forEach((condition) => {
@@ -641,7 +644,10 @@ function Islands() {
         }
       );
 
+      // if (insideIsland.out.right || insideIsland.out.left||insideIsland.out.up||insideIsland.out.down)
       game.onBridge = insideIsland;
+
+      console.log("game.onBridge", index, game.onBridge);
       // Draw the island
       this.context.drawImage(
         imageRepository.island,
@@ -777,7 +783,7 @@ function Islands() {
         );
 
         // Update movement flags based on collisions
-        updateMovementFlags([collisionJewel, insideIsland]);
+        updateMovementFlags([collisionJewel, game.onBridge]);
         // Handle jewel touching logic
         if (
           (!collisionJewel.up ||
@@ -1194,6 +1200,38 @@ function Game() {
         4000
       )),
     },
+    // {
+    //   id: 2,
+    //   x: 0,
+    //   y: -1800 - 1375,
+    //   width: 1800,
+    //   height: 1800,
+    //   jewelType: "emerald-mine",
+    //   bridges: [
+    //     {
+    //       type: "emerald",
+    //       value: 50,
+    //       direction: "left",
+    //     },
+    //     {
+    //       type: "emerald",
+    //       value: 50,
+    //       direction: "up",
+    //     },
+    //     {
+    //       type: "emerald",
+    //       value: 50,
+    //       direction: "right",
+    //     },
+    //   ],
+    //   jewels: (initialJewels = this.generateJewelArray(
+    //     8,
+    //     1800,
+    //     1800,
+    //     2000,
+    //     4000
+    //   )),
+    // },
   ];
 
   this.viewSizeX = this.viewSize;
@@ -1451,22 +1489,57 @@ function checkInside(x1, y1, x2, y2, w1, w2, h1, h2, hole = null) {
   left = x1 < x2;
   up = y1 < y2;
 
-  if (out.up || out.down) {
+  if (out.up && out.left) {
+    up = false;
+    left = false;
+    right = true;
+    down = true;
+  } else if (out.up && out.right) {
+    up = false;
+    left = true;
+    down = true;
+    right = false;
+  } else if (out.down && out.left) {
+    down = false;
+    left = false;
+    right = true;
+    up = true;
+  } else if (out.down && out.right) {
+    down = false;
+    left = true;
+    right = false;
+    up = true;
+  } else if (out.up) {
     left =
       hole &&
       hole.size &&
       hole.direction.up &&
-      x1 + h1 / 2 - hole.size / 2 < x2;
+      x1 + w1 / 2 - hole.size / 2 < x2;
     right =
       hole &&
       hole.size &&
       hole.direction.up &&
-      x1 + h1 / 2 + hole.size / 2 > x2 + w2;
+      x1 + w1 / 2 + hole.size / 2 > x2 + w2;
     up = left && right;
+    down = y1 - 10 > y2 ? left && right : true;
+    left = y1 - 10 > y2 ? left : true;
+    right = y1 - 10 > y2 ? right : true;
+  } else if (out.down) {
+    left =
+      hole &&
+      hole.size &&
+      hole.direction.up &&
+      x1 + w1 / 2 - hole.size / 2 < x2;
+    right =
+      hole &&
+      hole.size &&
+      hole.direction.up &&
+      x1 + w1 / 2 + hole.size / 2 > x2 + w2;
     down = left && right;
-  }
-
-  if (out.left || out.right) {
+    up = y1 + w1 + 10 < y2 ? left && right : true;
+    left = y1 + w1 + 10 < y2 ? left : true;
+    right = y1 + w1 + 10 < y2 ? right : true;
+  } else if (out.left) {
     up =
       hole &&
       hole.size &&
@@ -1478,7 +1551,24 @@ function checkInside(x1, y1, x2, y2, w1, w2, h1, h2, hole = null) {
       hole.direction.left &&
       y1 + h1 / 2 + hole.size / 2 > y2 + h2;
     left = up && down;
+    right = x1 - 10 > x2 ? up && down : true;
+    up = x1 - 10 > x2 ? up : true;
+    down = x1 - 10 > x2 ? down : true;
+  } else if (out.right) {
+    up =
+      hole &&
+      hole.size &&
+      hole.direction.left &&
+      y1 + h1 / 2 - hole.size / 2 < y2;
+    down =
+      hole &&
+      hole.size &&
+      hole.direction.left &&
+      y1 + h1 / 2 + hole.size / 2 > y2 + h2;
     right = up && down;
+    left = x1 + w1 + 10 < x2 ? up && down : true;
+    up = x1 + w1 + 10 < x2 ? up : true;
+    down = x1 + w1 + 10 < x2 ? down : true;
   }
   // console.log("checkInside", out, { up, down, left, right });
   let holeBoundary = {
