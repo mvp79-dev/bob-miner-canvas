@@ -337,8 +337,6 @@ function Character() {
     } else {
       this.move();
     }
-    //draw shadow
-
     //draw control
     if (game.control) {
       this.context.fillStyle = "rgba(255, 0, 0, 0.5)";
@@ -377,8 +375,6 @@ function Character() {
         if (game.movableLeft && game.movableDown) {
           game.characterX -= this.speed;
           game.characterY += this.speed;
-          game.viewPosX -= this.speed;
-          game.viewPosY += this.speed;
         }
       } else if (
         (KEY_STATUS.right && KEY_STATUS.down) ||
@@ -391,8 +387,6 @@ function Character() {
         if (game.movableRight && game.movableDown) {
           game.characterX += this.speed;
           game.characterY += this.speed;
-          game.viewPosX += this.speed;
-          game.viewPosY += this.speed;
         }
       } else if ((KEY_STATUS.left && KEY_STATUS.up) || game.direction == "UL") {
         this.moveImage = imageRepository.character["walk-up-left"];
@@ -400,8 +394,6 @@ function Character() {
         if (game.movableLeft && game.movableUp) {
           game.characterX -= this.speed;
           game.characterY -= this.speed;
-          game.viewPosX -= this.speed;
-          game.viewPosY -= this.speed;
         }
         this.shadowOffsetX =
           this.shadowOffsetX < 30 ? this.shadowOffsetX + 1 : 30;
@@ -416,84 +408,42 @@ function Character() {
         if (game.movableRight && game.movableUp) {
           game.characterX += this.speed;
           game.characterY -= this.speed;
-          game.viewPosX += this.speed;
-          game.viewPosY -= this.speed;
         }
       } else if (KEY_STATUS.left || game.direction == "L") {
         this.moveImage = imageRepository.character["walk-left"];
         this.shadowOffsetX =
           this.shadowOffsetX < 30 ? this.shadowOffsetX + 1 : 30;
-        if (
-          game.onBridge &&
-          (game.onBridge.out.left || game.onBridge.out.right) &&
-          !game.onBridge.out.up &&
-          !game.onBridge.out.down &&
-          !game.onBridge.right
-        ) {
-          game.characterY = game.onBridge.up
-            ? game.onBridge.holeBoundary.down - game.characterHeight - 5
-            : game.onBridge.holeBoundary.up + 5;
-        }
         if (game.movableLeft) {
           game.characterX -= this.speed;
-          game.viewPosX -= this.speed;
         }
       } else if (KEY_STATUS.right || game.direction == "R") {
         this.moveImage = imageRepository.character["walk-right"];
         this.shadowOffsetX =
           this.shadowOffsetX > -30 ? this.shadowOffsetX - 1 : -30;
-        if (
-          game.onBridge &&
-          (game.onBridge.out.left || game.onBridge.out.right) &&
-          !game.onBridge.out.up &&
-          !game.onBridge.out.down &&
-          !game.onBridge.left
-        ) {
-          game.characterY = game.onBridge.up
-            ? game.onBridge.holeBoundary.down - game.characterHeight - 5
-            : game.onBridge.holeBoundary.up + 5;
-        }
 
         if (game.movableRight) {
           game.characterX += this.speed;
-          game.viewPosX += this.speed;
         }
       } else if (KEY_STATUS.up || game.direction == "U") {
         this.moveImage = imageRepository.character["walk-up"];
-        if (
-          game.onBridge &&
-          (game.onBridge.out.up || game.onBridge.out.down) &&
-          !game.onBridge.up &&
-          !game.onBridge.down
-        ) {
-          game.characterX = game.onBridge.right
-            ? game.onBridge.holeBoundary.left + 5
-            : game.onBridge.holeBoundary.right - game.character.width - 5;
-        }
 
         if (game.movableUp) {
           game.characterY -= this.speed;
-          game.viewPosY -= this.speed;
         }
       } else if (KEY_STATUS.down || game.direction == "D") {
         this.moveImage = imageRepository.character["walk-down"];
-        if (
-          game.onBridge &&
-          (game.onBridge.out.up || game.onBridge.out.down) &&
-          !game.onBridge.up &&
-          !game.onBridge.down
-        ) {
-          game.characterX = game.onBridge.right
-            ? game.onBridge.holeBoundary.left + 5
-            : game.onBridge.holeBoundary.right - game.character.width - 5;
-        }
 
         if (game.movableDown) {
           game.characterY += this.speed;
-          game.viewPosY += this.speed;
         }
       } else this.shadowOffsetX = 0;
     }
+
+    let dx = game.characterX - game.viewSizeX / 2 - game.viewPosX;
+    let dy = game.characterY - game.viewSizeY / 2 - game.viewPosY;
+
+    game.viewPosX += dx / 5;
+    game.viewPosY += dy / 5;
 
     this.context.drawImage(
       this.moveImage,
@@ -512,7 +462,6 @@ function Character() {
     this.context.drawImage(
       this.workImage,
       this.workSx() * 187,
-      // this.workSy() * 160,
       0,
       187,
       188,
@@ -558,7 +507,6 @@ function Islands() {
             Math.log(piece.speed);
         } else {
           if (piece.curMotionId === piece.motion.length - 1) {
-            // game.curMintJewel.index += 1;
             game.curMintJewel.pieces.splice(id, 1);
             game.ownedJewel[game.curMintJewel.type] += 1;
           } else {
@@ -577,8 +525,6 @@ function Islands() {
           imageRepository.particles[game.curMintJewel.type].height,
           piece.x,
           piece.y,
-          // game.viewSizeX / 2,
-          // game.viewSizeY / 2,
           piece.width,
           piece.height
         );
@@ -602,7 +548,86 @@ function Islands() {
     }
   };
 
-  // Method to draw islands and handle jewel lifecycle
+  this.drawJewel = function (island, x, y, jewel) {
+    this.context.drawImage(
+      imageRepository.jewel[island.jewelType],
+      0,
+      0,
+      imageRepository.jewel[island.jewelType].width,
+      imageRepository.jewel[island.jewelType].height,
+      x,
+      y,
+      jewel.width,
+      jewel.height
+    );
+  };
+
+  this.drawIsland = function (island) {
+    this.context.drawImage(
+      imageRepository.island,
+      0,
+      0,
+      imageRepository.island.width,
+      imageRepository.island.height,
+      island.x - game.viewPosX,
+      island.y - game.viewPosY,
+      imageRepository.island.width,
+      imageRepository.island.height
+    );
+  };
+
+  this.drawBridge = function (island) {
+    if (island.bridges) {
+      island.bridges.forEach((bridge) => {
+        let type =
+          bridge.direction == "left" || bridge.direction == "right"
+            ? "horizontal"
+            : "vertical";
+        bridge.width = imageRepository.bridge[type].width;
+        bridge.height = imageRepository.bridge[type].height;
+
+        switch (bridge.direction) {
+          case "up":
+            bridge.x =
+              island.x - game.viewPosX + island.width / 2 - bridge.width / 2;
+            bridge.y = island.y - game.viewPosY - bridge.height;
+            break;
+          case "down":
+            bridge.x =
+              island.x - game.viewPosX + island.width / 2 - bridge.width / 2;
+            bridge.y = island.y - game.viewPosY + island.height;
+            break;
+          case "left":
+            bridge.x = island.x - game.viewPosX - bridge.width;
+            bridge.y =
+              island.y - game.viewPosY + island.height / 2 - bridge.height / 2;
+            break;
+          case "right":
+            bridge.x = island.x - game.viewPosX + island.width;
+            bridge.y =
+              island.y - game.viewPosY + island.height / 2 - bridge.height / 2;
+            break;
+          default:
+            bridge.x = 0;
+            bridge.y = 0;
+            break;
+        }
+        this.context.drawImage(
+          imageRepository.bridge[type],
+          0,
+          0,
+          imageRepository.bridge[type].width,
+          imageRepository.bridge[type].height,
+          bridge.x,
+          bridge.y,
+          bridge.width,
+          bridge.height
+        );
+      });
+    }
+  };
+
+
   this.draw = function () {
     this.data.forEach((island, index) => {
       // Initialize movement flags
@@ -649,85 +674,9 @@ function Islands() {
 
       console.log("game.onBridge", index, game.onBridge);
       // Draw the island
-      this.context.drawImage(
-        imageRepository.island,
-        0,
-        0,
-        imageRepository.island.width,
-        imageRepository.island.height,
-        island.x - game.viewPosX,
-        island.y - game.viewPosY,
-        imageRepository.island.width,
-        imageRepository.island.height
-      );
-      if (island.bridges) {
-        island.bridges.forEach((bridge) => {
-          let type =
-            bridge.direction == "left" || bridge.direction == "right"
-              ? "horizontal"
-              : "vertical";
-          bridge.width = imageRepository.bridge[type].width;
-          bridge.height = imageRepository.bridge[type].height;
+      this.drawIsland(island);
 
-          switch (bridge.direction) {
-            case "up":
-              bridge.x =
-                island.x - game.viewPosX + island.width / 2 - bridge.width / 2;
-              bridge.y = island.y - game.viewPosY - bridge.height;
-              break;
-            case "down":
-              bridge.x =
-                island.x - game.viewPosX + island.width / 2 - bridge.width / 2;
-              bridge.y = island.y - game.viewPosY + island.height;
-              break;
-            case "left":
-              bridge.x = island.x - game.viewPosX - bridge.width;
-              bridge.y =
-                island.y -
-                game.viewPosY +
-                island.height / 2 -
-                bridge.height / 2;
-              break;
-            case "right":
-              bridge.x = island.x - game.viewPosX + island.width;
-              bridge.y =
-                island.y -
-                game.viewPosY +
-                island.height / 2 -
-                bridge.height / 2;
-              break;
-            default:
-              bridge.x = 0;
-              bridge.y = 0;
-              break;
-          }
-          this.context.drawImage(
-            imageRepository.bridge[type],
-            0,
-            0,
-            imageRepository.bridge[type].width,
-            imageRepository.bridge[type].height,
-            bridge.x,
-            bridge.y,
-            bridge.width,
-            bridge.height
-          );
-
-          // insideBridge = checkInside(
-          //   bridge.x,
-          //   bridge.y,
-          //   game.characterX,
-          //   game.characterY,
-          //   bridge.width,
-          //   game.characterWidth,
-          //   bridge.height,
-          //   game.characterHeight
-          // );
-        });
-      }
-
-      // console.log("this.inside", insideIsland);
-      // Helper function to respawn a jewel after removal
+      this.drawBridge(island);
       // Helper function to calculate the distance between two points
       const calculateDistance = (x1, y1, x2, y2) => {
         return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
@@ -813,9 +762,6 @@ function Islands() {
               this.touchedJewelId = null;
               this.jewelMoveSpeed = 0;
               game.mining = false;
-              // game.ownedJewel[island.jewelType.split("-")[0]] += parseInt(
-              //   Math.random() * 3 + 8
-              // );
 
               // Start fade out process
               this.fadeOutStartTime = Date.now();
@@ -956,17 +902,7 @@ function Islands() {
         // Set the global alpha value for the context before drawing
         this.context.globalAlpha = jewel.isFadingOut ? jewel.fadeOutAlpha : 1;
 
-        this.context.drawImage(
-          imageRepository.jewel[island.jewelType],
-          0,
-          0,
-          imageRepository.jewel[island.jewelType].width,
-          imageRepository.jewel[island.jewelType].height,
-          x,
-          y,
-          jewel.width,
-          jewel.height
-        );
+        this.drawJewel(island, x, y, jewel);
 
         // Reset the alpha for subsequent drawings
         this.context.globalAlpha = 1;
@@ -1069,8 +1005,8 @@ function Game() {
   this.SizeY = 5000;
   this.characterX = Math.random() * 1000;
   this.characterY = Math.random() * 1000;
-  this.characterWidth = 150;
-  this.characterHeight = 160;
+  this.characterWidth = 80;
+  this.characterHeight = 120;
   this.viewSize = 1200;
   this.viewPosX = 0;
   this.viewPosY = 0;
@@ -1085,7 +1021,7 @@ function Game() {
   this.controlRadius = 0;
   this.direction = null;
   this.jewelWidth = 250;
-  this.jewelHeight = 300;
+  this.jewelHeight = 330;
   this.mining = false;
   this.curMintJewel = null;
   this.onBridge = null;
@@ -1524,6 +1460,10 @@ function checkInside(x1, y1, x2, y2, w1, w2, h1, h2, hole = null) {
     down = y1 - 10 > y2 ? left && right : true;
     left = y1 - 10 > y2 ? left : true;
     right = y1 - 10 > y2 ? right : true;
+    if (!up && !down && (left || right)) {
+      up = true;
+      down = true;
+    }
   } else if (out.down) {
     left =
       hole &&
@@ -1539,6 +1479,10 @@ function checkInside(x1, y1, x2, y2, w1, w2, h1, h2, hole = null) {
     up = y1 + w1 + 10 < y2 ? left && right : true;
     left = y1 + w1 + 10 < y2 ? left : true;
     right = y1 + w1 + 10 < y2 ? right : true;
+    if (!up && !down && (left || right)) {
+      up = true;
+      down = true;
+    }
   } else if (out.left) {
     up =
       hole &&
@@ -1554,6 +1498,11 @@ function checkInside(x1, y1, x2, y2, w1, w2, h1, h2, hole = null) {
     right = x1 - 10 > x2 ? up && down : true;
     up = x1 - 10 > x2 ? up : true;
     down = x1 - 10 > x2 ? down : true;
+
+    if (!left && !right && (up || down)) {
+      left = true;
+      right = true;
+    }
   } else if (out.right) {
     up =
       hole &&
@@ -1569,6 +1518,10 @@ function checkInside(x1, y1, x2, y2, w1, w2, h1, h2, hole = null) {
     left = x1 + w1 + 10 < x2 ? up && down : true;
     up = x1 + w1 + 10 < x2 ? up : true;
     down = x1 + w1 + 10 < x2 ? down : true;
+    if (!left && !right && (up || down)) {
+      left = true;
+      right = true;
+    }
   }
   // console.log("checkInside", out, { up, down, left, right });
   let holeBoundary = {
