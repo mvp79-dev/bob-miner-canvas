@@ -63,13 +63,15 @@ var imageRepository = new (function () {
   var numImages = 5;
   var numLoaded = 0;
 
+  this.control = new Image();
+  this.island = new Image();
+  this.tree = new Image();
+
   this.background = {
     "tile-water-1": new Image(),
     "tile-water-2": new Image(),
   };
 
-  this.control = new Image();
-  this.island = new Image();
   this.character = {
     "walk-up": new Image(),
     "walk-down": new Image(),
@@ -94,6 +96,7 @@ var imageRepository = new (function () {
     amethyst: new Image(),
     money: new Image(),
   };
+
   this.status = {
     ruby: new Image(),
     emerald: new Image(),
@@ -107,6 +110,13 @@ var imageRepository = new (function () {
     "ruby-mine": new Image(),
   };
 
+  this.factory = {
+    amethyst: new Image(),
+    emerald: new Image(),
+    ruby: new Image(),
+    barn: new Image(),
+  };
+
   function imageLoaded() {
     numLoaded++;
     if (numLoaded === numImages) {
@@ -114,11 +124,19 @@ var imageRepository = new (function () {
     }
   }
 
+  this.tree = "media/graphics/sprites/ingame/tree.png";
+  this.island.src = "media/graphics/sprites/ingame/island.png";
+  this.control.src = "media/graphics/sprites/ui/control.png";
+
   this.island.onload = function () {
     imageLoaded();
   };
 
   this.control.onload = function () {
+    imageLoaded();
+  };
+
+  this.tree.onload = function () {
     imageLoaded();
   };
 
@@ -150,6 +168,13 @@ var imageRepository = new (function () {
     };
   });
 
+  Object.keys(this.factory).forEach((key) => {
+    this.factory[key].src = `media/graphics/sprites/ingame/factory-${key}.png`;
+    this.factory[key].onload = function () {
+      imageLoaded();
+    };
+  });
+
   Object.keys(this.particles).forEach((key) => {
     this.particles[
       key
@@ -165,9 +190,6 @@ var imageRepository = new (function () {
       imageLoaded();
     };
   });
-
-  this.island.src = "media/graphics/sprites/ingame/island.png";
-  this.control.src = "media/graphics/sprites/ui/control.png";
 })();
 
 function Drawable() {
@@ -182,16 +204,11 @@ function Drawable() {
   this.speed = 0;
   this.canvasWidth = 0;
   this.canvasHeight = 0;
-  this.collidableWith = "";
-  this.isColliding = false;
   this.type = "";
 
   // Define abstract function to be implemented in child objects
   this.draw = function () {};
   this.move = function () {};
-  this.isCollidableWith = function (object) {
-    return this.collidableWith === object.type;
-  };
 }
 
 function Background() {
@@ -199,8 +216,6 @@ function Background() {
   this.acc = 0;
   this.tileSizeX = 720;
   this.tileSizeY = 720;
-  this.tileResetX = game.viewSizeX % this.tileSizeX;
-  this.tileResetX = game.viewSizeX % this.tileSizeY;
 
   this.drawTile = function (tileName, direction = 1) {
     let tileCountX =
@@ -209,8 +224,12 @@ function Background() {
       parseInt(game.viewSizeY / imageRepository.background[tileName].height) +
       1;
 
-    for (let offsetX = -2 * tileCountX; offsetX < 2 * tileCountX; offsetX++)
-      for (let offsetY = -2 * tileCountY; offsetY < 2 * tileCountY; offsetY++) {
+    for (let offsetX = -10 * tileCountX; offsetX < 10 * tileCountX; offsetX++)
+      for (
+        let offsetY = -10 * tileCountY;
+        offsetY < 10 * tileCountY;
+        offsetY++
+      ) {
         this.context.drawImage(
           imageRepository.background[tileName],
           0,
@@ -404,7 +423,16 @@ function Character() {
         this.moveImage = imageRepository.character["walk-left"];
         this.shadowOffsetX =
           this.shadowOffsetX < 30 ? this.shadowOffsetX + 1 : 30;
-
+        if (
+          game.onBridge &&
+          (game.onBridge.out.left || game.onBridge.out.right) &&
+          !game.onBridge.left
+        ) {
+          console.log("game.onBridge", game.onBridge);
+          game.characterY = game.onBridge.up
+            ? game.onBridge.holeBoundary.down - game.characterHeight - 5
+            : game.onBridge.holeBoundary.up + 5;
+        }
         if (game.movableLeft) {
           game.characterX -= this.speed;
           game.viewPosX -= this.speed;
@@ -413,19 +441,48 @@ function Character() {
         this.moveImage = imageRepository.character["walk-right"];
         this.shadowOffsetX =
           this.shadowOffsetX > -30 ? this.shadowOffsetX - 1 : -30;
+        if (
+          game.onBridge &&
+          (game.onBridge.out.left || game.onBridge.out.right) &&
+          !game.onBridge.right
+        ) {
+          console.log("game.onBridge", game.onBridge);
+          game.characterY = game.onBridge.up
+            ? game.onBridge.holeBoundary.down - game.characterHeight - 5
+            : game.onBridge.holeBoundary.up + 5;
+        }
         if (game.movableRight) {
           game.characterX += this.speed;
           game.viewPosX += this.speed;
         }
       } else if (KEY_STATUS.up || game.direction == "U") {
         this.moveImage = imageRepository.character["walk-up"];
+        if (
+          game.onBridge &&
+          (game.onBridge.out.up || game.onBridge.out.down) &&
+          !game.onBridge.up
+        ) {
+          console.log("game.onBridge", game.onBridge);
+          game.characterX = game.onBridge.right
+            ? game.onBridge.holeBoundary.left + 5
+            : game.onBridge.holeBoundary.right - game.character.width - 5;
+        }
         if (game.movableUp) {
           game.characterY -= this.speed;
           game.viewPosY -= this.speed;
         }
       } else if (KEY_STATUS.down || game.direction == "D") {
         this.moveImage = imageRepository.character["walk-down"];
-
+        if (
+          game.onBridge &&
+          (game.onBridge.out.up || game.onBridge.out.down) &&
+          !game.onBridge.down
+        ) {
+          console.log("game.onBridge", game.onBridge);
+          game.characterX = game.onBridge.right
+            ? game.onBridge.holeBoundary.left + 5
+            : game.onBridge.holeBoundary.right - game.character.width - 5;
+        }
         if (game.movableDown) {
           game.characterY += this.speed;
           game.viewPosY += this.speed;
@@ -495,11 +552,6 @@ function Islands() {
             ((piece.motion[piece.curMotionId].targetY - piece.y) / 50) *
             Math.log(piece.speed);
         } else {
-          console.log(
-            "complete:",
-            piece.motion[piece.curMotionId],
-            piece.motion.length
-          );
           if (piece.curMotionId === piece.motion.length - 1) {
             // game.curMintJewel.index += 1;
             game.curMintJewel.pieces.splice(id, 1);
@@ -588,6 +640,8 @@ function Islands() {
           direction: { up: true, left: true, right: true, down: true },
         }
       );
+
+      game.onBridge = insideIsland;
       // Draw the island
       this.context.drawImage(
         imageRepository.island,
@@ -1028,6 +1082,8 @@ function Game() {
   this.jewelHeight = 300;
   this.mining = false;
   this.curMintJewel = null;
+  this.onBridge = null;
+
   this.ownedJewel = {
     ruby: 0,
     emerald: 0,
@@ -1424,9 +1480,15 @@ function checkInside(x1, y1, x2, y2, w1, w2, h1, h2, hole = null) {
     left = up && down;
     right = up && down;
   }
-  console.log("checkInside", out, { up, down, left, right });
+  // console.log("checkInside", out, { up, down, left, right });
+  let holeBoundary = {
+    left: x1 + h1 / 2 - hole.size / 2,
+    right: x1 + h1 / 2 + hole.size / 2,
+    up: y1 + h1 / 2 - hole.size / 2,
+    down: y1 + h1 / 2 + hole.size / 2,
+  };
 
-  return { up, down, left, right, out };
+  return { up, down, left, right, out, holeBoundary };
 }
 
 // The keycodes that will be mapped when a user presses a button.
