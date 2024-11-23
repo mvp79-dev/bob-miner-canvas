@@ -627,6 +627,19 @@ function Islands() {
     }
   };
 
+  this.drawTree = function (tree) {
+    this.context.drawImage(
+      imageRepository.tree,
+      0,
+      0,
+      imageRepository.tree.width,
+      imageRepository.tree.height,
+      tree.x,
+      tree.y,
+      tree.width,
+      tree.height
+    );
+  };
 
   this.draw = function () {
     this.data.forEach((island, index) => {
@@ -714,6 +727,9 @@ function Islands() {
         setTimeout(checkAndRespawn, respawnDelay);
       };
 
+      island.trees&& island.trees.forEach(tree => {
+        this.drawTree(tree);
+      })
       // Process jewels and check collisions
       island.jewels.forEach((jewel, i) => {
         const jewelX = island.x + jewel.x;
@@ -1106,6 +1122,20 @@ function Game() {
       width: 1800,
       height: 1800,
       jewelType: "ruby-mine",
+      trees: [
+        {
+          x: 900 + 100,
+          y: 100,
+          width: 250,
+          height:300
+        },
+        {
+          x: 100,
+          y: 900 + 100,
+          width: 250,
+          height: 300
+        },
+      ],
       bridges: [
         {
           type: "ruby",
@@ -1130,44 +1160,12 @@ function Game() {
       ],
       jewels: (initialJewels = this.generateJewelArray(
         8,
-        1800,
-        1800,
+        1000,
+        1000,
         2000,
         4000
       )),
     },
-    // {
-    //   id: 2,
-    //   x: 0,
-    //   y: -1800 - 1375,
-    //   width: 1800,
-    //   height: 1800,
-    //   jewelType: "emerald-mine",
-    //   bridges: [
-    //     {
-    //       type: "emerald",
-    //       value: 50,
-    //       direction: "left",
-    //     },
-    //     {
-    //       type: "emerald",
-    //       value: 50,
-    //       direction: "up",
-    //     },
-    //     {
-    //       type: "emerald",
-    //       value: 50,
-    //       direction: "right",
-    //     },
-    //   ],
-    //   jewels: (initialJewels = this.generateJewelArray(
-    //     8,
-    //     1800,
-    //     1800,
-    //     2000,
-    //     4000
-    //   )),
-    // },
   ];
 
   this.viewSizeX = this.viewSize;
